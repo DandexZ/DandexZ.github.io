@@ -1,11 +1,49 @@
 <!DOCTYPE html>
-<html lang="zh">
-  <head>
-    <meta charset="UTF-8" />
-    <title>我的网站</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>张皓然的主页</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>张皓然的主页</h1>
+            <nav>
+                <ul>
+                    <li><a href="index.html">首页</a></li>
+                    <li><a href="/pdfs/张皓然的简历2.5.pdf">关于我</a></li>
+                    <li><a href="#">联系</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="blog-posts">
+            <article>
+                <h2>张皓然的简历</h2>
+                <p class="meta">发布日期：2025年5月12日</p>
+                <p>这是张皓然的简历，欢迎阅读！</p>
+                <a href="/pdfs/张皓然的简历2.5.pdf" class="read-more">阅读更多</a>
+            </article>
+        
+            <article>
+              <h2>张皓然的research statement</h2>
+              <p class="meta">发布日期：2025年5月12日</p>
+              <p>这是张皓然的研究陈述，欢迎阅读！</p>
+              <a href="/pdfs/research statement.pdf" class="read-more">阅读更多</a>
+          </article>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 张皓然的主页. 保留所有权利。</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
 </html>
