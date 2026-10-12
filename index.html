@@ -43,26 +43,35 @@
                         </div>
                     </a>
 
-                    <div class="game-card is-locked">
+                    <a class="game-card" href="games/2048/index.html" data-game="2048">
                         <div class="icon">🔢</div>
                         <div class="name">2048</div>
-                        <div class="desc">滑动合并数字，挑战 2048。</div>
-                        <div class="meta-row"><span class="tag">开发中</span></div>
-                    </div>
+                        <div class="desc">滑动合并相同数字，挑战 2048。</div>
+                        <div class="meta-row">
+                            <span class="tag">可玩</span>
+                            <span class="best">最高 <b data-best>0</b></span>
+                        </div>
+                    </a>
 
-                    <div class="game-card is-locked">
+                    <a class="game-card" href="games/tetris/index.html" data-game="tetris">
                         <div class="icon">🧱</div>
                         <div class="name">俄罗斯方块</div>
                         <div class="desc">消除整行，越叠越快。</div>
-                        <div class="meta-row"><span class="tag">开发中</span></div>
-                    </div>
+                        <div class="meta-row">
+                            <span class="tag">可玩</span>
+                            <span class="best">最高 <b data-best>0</b></span>
+                        </div>
+                    </a>
 
-                    <div class="game-card is-locked">
+                    <a class="game-card" href="games/minesweeper/index.html" data-game="minesweeper">
                         <div class="icon">💣</div>
                         <div class="name">扫雷</div>
-                        <div class="desc">推理排雷，小心别踩雷。</div>
-                        <div class="meta-row"><span class="tag">开发中</span></div>
-                    </div>
+                        <div class="desc">9×9 十颗雷，推理排雷别踩雷。</div>
+                        <div class="meta-row">
+                            <span class="tag">可玩</span>
+                            <span class="best">最快 <b data-best>0</b> 秒</span>
+                        </div>
+                    </a>
                 </div>
             </section>
 
@@ -93,7 +102,9 @@
         // 大厅卡片上显示各游戏的历史最高分
         document.querySelectorAll('.game-card[data-game]').forEach(function (card) {
             var node = card.querySelector('[data-best]');
-            if (node) node.textContent = HighScore.get(card.dataset.game);
+            if (!node) return;
+            var v = HighScore.get(card.dataset.game);
+            node.textContent = v > 0 ? v : '—';
         });
     </script>
 </body>

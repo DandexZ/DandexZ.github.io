@@ -2,23 +2,29 @@
    game-shell.js — 游戏壳（所有小游戏的公共骨架）
    ------------------------------------------------------------
    职责（每个游戏不用重复实现的）：
-     · HUD（当前分 / 最高分）
+     · HUD（当前分 / 最高分，标签与单位可配）
      · 开始 / 暂停 / 重开 按钮 + 空格键
      · 键盘方向键 + WASD
      · 移动端触控方向键 + canvas 滑动手势
+     · 画布点按 / 右键 / 长按（回合制与棋盘类游戏用）
      · 暂停 / 结束 / 通关 遮罩
-     · 定帧循环
-     · 最高分读写
+     · 定帧循环（tickMs>0）或回合制（tickMs=0，操作后重绘）
+     · 最高分读写（支持"越低越好"，如用时）
    游戏只需提供 opts：
-     mount       容器选择器，默认 '#game-shell'
-     gameKey     最高分标识，如 'snake'
-     width/height  canvas 尺寸，默认 400x400
-     tickMs      每帧毫秒，默认 150
-     title       结束遮罩副标题用
+     mount        容器选择器，默认 '#game-shell'
+     gameKey      最高分标识，如 'snake'
+     width/height canvas 尺寸，默认 400x400
+     tickMs       每帧毫秒；默认 150；传 0 = 回合制（无定时器）
+     tip          底部操作提示（外壳会自动补"空格：开始 / 暂停"）
+     scoreLabel   当前分标签，默认 '🍎'
+     bestLabel    最高分标签，默认 '🏆 最高'
+     unit         数值单位，如 '秒'
+     lowerIsBetter true = 数值越小越好（记"最快"）
      onReset(shell)          重置状态
      onTick(shell)           每帧逻辑；返回 'over' 或 'win' 结束本局
      onDraw(ctx, shell)      绘制
      onDirection(dx, dy)     收到方向输入（键盘/触控/滑动）
+     onTap(x, y, button)     画布点按；x,y 为 canvas 坐标，button 为 'left'|'right'
      autostart   是否进入页面即开始，默认 false
    ============================================================ */
 (function (global) {
@@ -31,6 +37,7 @@
     };
 
     var SWIPE_MIN = 24;   // 滑动手势最小位移(px)
+    var LONG_PRESS_MS = 400;
 
     function GameShell(opts) {
         this.opts = opts || {};
@@ -38,7 +45,9 @@
         if (!this.mount) throw new Error('GameShell: 找不到挂载容器 ' + (this.opts.mount || '#game-shell'));
 
         this.gameKey = this.opts.gameKey || 'default';
-        this.tickMs = this.opts.tickMs || 150;
+        // tickMs = 0 → 回合制：不跑定时器，靠操作驱动重绘（2048 这类）
+        this.tickMs = (this.opts.tickMs === 0) ? 0 : (this.opts.tickMs || 150);
+        this.turnBased = this.tickMs === 0;
         this.width = this.opts.width || 400;
         this.height = this.opts.height || 400;
 
@@ -61,14 +70,17 @@
     /* ---------------- DOM ---------------- */
     GameShell.prototype._build = function () {
         var self = this;
+        var unit = this.opts.unit ? ' ' + this.opts.unit : '';
 
         var wrap = document.createElement('div');
         wrap.className = 'game-shell';
 
         wrap.innerHTML =
             '<div class="hud">' +
-                '<span class="hud-score">🍎 <b>0</b></span>' +
-                '<span class="hud-best">🏆 最高 <b>' + this.best + '</b></span>' +
+                '<span class="hud-score">' + (this.opts.scoreLabel || '🍎') +
+                    ' <b>0</b>' + unit + '</span>' +
+                '<span class="hud-best">' + (this.opts.bestLabel || '🏆 最高') +
+                    ' <b>' + (this.best || '—') + '</b>' + unit + '</span>' +
             '</div>' +
             '<div class="stage">' +
                 '<canvas width="' + this.width + '" height="' + this.height + '"></canvas>' +
@@ -118,6 +130,18 @@
         });
     };
 
+    /* 客户端坐标 → canvas 位图坐标（CSS 缩放时也准确） */
+    GameShell.prototype._toCanvas = function (clientX, clientY) {
+        var r = this.canvas.getBoundingClientRect();
+        // 无布局环境（如 jsdom）下 rect 为 0，退回 1:1 映射，避免除零
+        var sx = r.width ? this.canvas.width / r.width : 1;
+        var sy = r.height ? this.canvas.height / r.height : 1;
+        return {
+            x: (clientX - r.left) * sx,
+            y: (clientY - r.top) * sy
+        };
+    };
+
     /* ---------------- 事件绑定 ---------------- */
     GameShell.prototype._bind = function () {
         var self = this;
@@ -139,7 +163,38 @@
         };
         document.addEventListener('keydown', this._onKey);
 
-        /* 滑动手势（移动端友好） */
+        /* ---- 点按 / 右键 / 长按（棋盘类游戏） ---- */
+        if (this.opts.onTap) {
+            this.canvas.addEventListener('click', function (e) {
+                // 长按已按"右键"处理过 → 吃掉紧随其后的 click，避免一次操作触发两次
+                if (self._suppressClick) { self._suppressClick = false; return; }
+                var p = self._toCanvas(e.clientX, e.clientY);
+                self._tap(p.x, p.y, 'left');
+            });
+
+            this.canvas.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                var p = self._toCanvas(e.clientX, e.clientY);
+                self._tap(p.x, p.y, 'right');
+            });
+
+            var lpTimer = null, lpPos = null;
+            this.canvas.addEventListener('touchstart', function (e) {
+                if (e.touches.length !== 1) return;
+                lpPos = self._toCanvas(e.touches[0].clientX, e.touches[0].clientY);
+                lpTimer = setTimeout(function () {
+                    lpTimer = null;
+                    self._suppressClick = true;
+                    self._tap(lpPos.x, lpPos.y, 'right');   // 长按 = 右键插旗
+                }, LONG_PRESS_MS);
+            }, { passive: true });
+
+            this.canvas.addEventListener('touchend', function () {
+                if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            }, { passive: true });
+        }
+
+        /* ---- 滑动手势（移动端） ---- */
         var sx = 0, sy = 0, tracking = false;
 
         this.canvas.addEventListener('touchstart', function (e) {
@@ -164,25 +219,47 @@
         }, { passive: true });
     };
 
-    /* 统一输入入口：方向输入时若还没开始，自动开局 */
+    /* 统一方向输入入口：输入时若还没开始，自动开局 */
     GameShell.prototype._input = function (dx, dy) {
         if (this.state === 'idle') this.start();
         if (this.state !== 'running') return;
         if (this.opts.onDirection) this.opts.onDirection(dx, dy, this);
+        if (this.turnBased) this._render();     // 回合制：操作后立即重绘
+    };
+
+    /* 统一点按入口 */
+    GameShell.prototype._tap = function (x, y, button) {
+        if (this.state === 'idle') this.start();
+        if (this.state !== 'running') return;
+        if (this.opts.onTap) this.opts.onTap(x, y, button, this);
     };
 
     /* ---------------- 渲染 ---------------- */
     GameShell.prototype._render = function () {
         this.scoreNode.textContent = this.score;
-        this.bestNode.textContent = this.best;
         if (this.opts.onDraw) this.opts.onDraw(this.ctx, this);
     };
 
-    /** 由游戏调用：更新当前分（自动刷新最高分） */
-    GameShell.prototype.setScore = function (n) {
+    /** 公开重绘入口（回合制游戏改完状态后调用） */
+    GameShell.prototype.render = function () { this._render(); };
+
+    /** 由游戏调用：更新当前分（自动刷新最高分）
+     *  第二个参数传 false 时只更新显示，不写入最高分
+     *  （扫雷计时的中途刷新用它，避免"玩到一半就记进最快"） */
+    GameShell.prototype.setScore = function (n, record) {
         this.score = n;
         this.scoreNode.textContent = n;
-        if (n > this.best) {
+
+        if (record === false) return;
+
+        if (this.opts.lowerIsBetter) {
+            // 越低越好：0 视为"无记录"，且只在有记录时比较
+            if (n > 0 && (this.best === 0 || n < this.best)) {
+                this.best = n;
+                this.bestNode.textContent = n;
+                if (global.HighScore) HighScore.set(this.gameKey, n);
+            }
+        } else if (n > this.best) {
             this.best = n;
             this.bestNode.textContent = n;
             if (global.HighScore) HighScore.set(this.gameKey, n);
@@ -213,8 +290,23 @@
         this.pauseBtn.textContent = '暂停';
         this._clearTimer();
         var self = this;
-        this.timer = setInterval(function () { self._frame(); }, this.tickMs);
+        if (!this.turnBased) {
+            this.timer = setInterval(function () { self._frame(); }, this.tickMs);
+        }
         this._render();
+    };
+
+    /** 动态调速（俄罗斯方块升级加速用）。传 0 可切回回合制 */
+    GameShell.prototype.setSpeed = function (ms) {
+        this.tickMs = ms;
+        this.turnBased = ms === 0;
+        if (this.state === 'running') {
+            this._clearTimer();
+            var self = this;
+            if (!this.turnBased) {
+                this.timer = setInterval(function () { self._frame(); }, ms);
+            }
+        }
     };
 
     GameShell.prototype.togglePause = function () {
@@ -230,7 +322,9 @@
             this.pauseBtn.textContent = '暂停';
             var self = this;
             this._clearTimer();
-            this.timer = setInterval(function () { self._frame(); }, this.tickMs);
+            if (!this.turnBased) {
+                this.timer = setInterval(function () { self._frame(); }, this.tickMs);
+            }
             this._render();
         }
     };
@@ -256,7 +350,7 @@
         this.startBtn.disabled = false;
         this.pauseBtn.disabled = true;
         this._render();
-        this._showOverlay('GAME OVER', (msg ? msg + '　' : '') + '最高 ' + this.best + ' 分');
+        this._showOverlay('GAME OVER', (msg ? msg + '　' : '') + this._bestText());
     };
 
     GameShell.prototype.win = function (msg) {
@@ -266,7 +360,13 @@
         this.startBtn.disabled = false;
         this.pauseBtn.disabled = true;
         this._render();
-        this._showOverlay('🎉 通关！', (msg ? msg + '　' : '') + '最高 ' + this.best + ' 分', true);
+        this._showOverlay('🎉 通关！', (msg ? msg + '　' : '') + this._bestText(), true);
+    };
+
+    GameShell.prototype._bestText = function () {
+        var unit = this.opts.unit ? this.opts.unit : '';
+        if (!this.best) return '暂无记录';
+        return (this.opts.lowerIsBetter ? '最快 ' : '最高 ') + this.best + unit + (unit ? '' : ' 分');
     };
 
     GameShell.prototype._frame = function () {

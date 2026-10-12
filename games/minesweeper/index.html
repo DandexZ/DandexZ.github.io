@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>扫雷 · 张皓然的小游戏</title>
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/game.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><a href="../../index.html">张皓然</a></h1>
+            <nav>
+                <ul>
+                    <li><a href="../../index.html#games">游戏大厅</a></li>
+                    <li><a href="../../index.html#about">关于我</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-page">
+            <div class="game-head">
+                <h2>💣 扫雷</h2>
+                <div class="sub">9 × 9 · 10 颗雷　·　左键 / 轻点翻开　·　右键 / 长按插旗</div>
+            </div>
+
+            <!-- 游戏壳由 js/game-shell.js 渲染 -->
+            <div id="game-shell"></div>
+
+            <a class="back-link" href="../../index.html#games">← 返回游戏大厅</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 张皓然</p>
+    </footer>
+
+    <script src="../../js/highscore.js"></script>
+    <script src="../../js/game-shell.js"></script>
+    <script src="minesweeper.js"></script>
+</body>
+</html>
