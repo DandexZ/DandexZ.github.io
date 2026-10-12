@@ -1,7 +1,7 @@
 /* ============================================================
    physics.js — 纯圆形刚体物理（位置约束法 / PBD）
    ------------------------------------------------------------
-   只做圆：重力、圆-圆碰撞、边界反弹、切向摩擦、静止收敛、碰撞上报。
+   只做圆：重力、圆-圆碰撞、边界反弹、库仑摩擦、静止收敛、碰撞上报。
    不含 DOM / 渲染 / 游戏规则，因此可以在 node 里直接跑数值断言。
    UMD：浏览器挂 window.CirclePhysics，node 走 module.exports。
 
@@ -10,11 +10,14 @@
    （各让一半，留 slop 容忍微小穿透），再顺带修正法向/切向速度，
    少量迭代就能得到稳定的堆叠。
 
-   关于"假不假"（重要）：
-   静止体如果一触地就当帧清零速度，水果会像贴图一样"啪"地钉住，
-   完全没有惯性/落定过程 —— 很假。这里用标准的 **sleep timer**：
-   被支撑且低速要持续 sleepDelay 秒才真正睡稳，期间保留弹跳后的
-   落定缓冲；真实碰撞会把接触双方标记为 disturbed，从而"惊醒"整堆。
+   两个"手感"上的关键设计（都是踩过坑才定下来的）：
+   · **摩擦用库仑模型**（切向冲量上限 μ·法向冲量），不用"速度阈值"判静/动。
+     速度阈值做法会让重力每步注入的那点切向速度（~g·h）永远低于阈值 →
+     摩擦每次都按"静摩擦"把切向速度整个抹掉 → 水果一碰就锁死、滑不下去，
+     看起来像"粘住"（用户原话：落到已有物体上会粘连，不符合现实）。
+     库仑模型下缓坡（tanθ<μ）能堆住、陡坡自然滑落，才是对的。
+   · **睡眠延迟**（sleep timer）：被支撑且低速要持续 sleepDelay 秒才真正睡稳。
+     当帧清零会让水果一触地就变成贴图；真实碰撞用 _disturbed 唤醒整堆。
    ============================================================ */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
@@ -25,18 +28,24 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
+    /* 把标量 v 朝 0 收缩，最多收缩 m（用于墙面切向摩擦的库仑上限） */
+    function limitMag(v, m) {
+        if (v > m) return v - m;
+        if (v < -m) return v + m;
+        return 0;
+    }
+
     function World(opts) {
         opts = opts || {};
         this.width  = opts.width  || 400;
         this.height = opts.height || 560;
 
         this.gravity     = opts.gravity == null ? 1600 : opts.gravity;      // px/s²
-        this.restitution = opts.restitution == null ? 0.18 : opts.restitution;      // 水果间弹性
+        this.restitution = opts.restitution == null ? 0.2 : opts.restitution;      // 水果间弹性
         this.wallRestitution = opts.wallRestitution == null ? 0.24 : opts.wallRestitution; // 墙体弹性
-        this.friction    = opts.friction == null ? 0.2 : opts.friction;     // 切向动摩擦
-        // 静摩擦阈值：切向相对速度低于它就直接清零（不再滑动）。
-        // 不加这个，堆叠会在位置修正下以几 px/s 缓慢"蠕动"，看着像永远在动。
-        this.staticFrictionSpeed = opts.staticFrictionSpeed == null ? 14 : opts.staticFrictionSpeed;
+        // 摩擦系数 μ（静=动）。tanθ > μ 的斜面才会滑，所以 μ 决定"能堆多陡"。
+        // 0.3 ≈ 16.7°：正上方能架住，偏心（架在别的球侧面上）会自然滑落，不"粘住"。
+        this.friction    = opts.friction == null ? 0.3 : opts.friction;
         this.iterations  = opts.iterations || 8;      // 每子步的约束迭代次数
         this.substeps    = opts.substeps || 2;
         this.slop        = opts.slop == null ? 0.5 : opts.slop;   // 允许的微小穿透（抗抖动）
@@ -52,7 +61,6 @@
         this.restThreshold = opts.restThreshold == null ? 40 : opts.restThreshold;
         this.maxVel      = opts.maxVel || 2600;       // 限速，避免极端穿透
         // 单次位置修正上限：深重叠时若一次弹开太多，物体会被"瞬移"出去（甚至飞出盒子）。
-        // 限幅后深重叠会分几步缓慢化开，行为稳定得多。
         this.maxCorrection = opts.maxCorrection == null ? 4 : opts.maxCorrection;
         // 睡眠窗口内的速度衰减（每步），让落地是"落定"而不是"啪一下冻住"
         this.settleDamping = opts.settleDamping == null ? 0.9 : opts.settleDamping;
@@ -109,8 +117,7 @@
         for (var k = 0; k < this.substeps; k++) {
             // 1) 积分（重力 + 阻尼 + 限速 + 位移）
             //    resting（已睡稳）的物体本步不加重力：否则它每步被推下去一点点，
-            //    位置修正又会沿斜向法线把它横向弹开，堆积就会以 2~3px/s 缓慢"摊开"。
-            //    失去支撑时 _settle 会把 resting 解除，恢复正常下落。
+            //    位置修正又会沿斜向法线把它横向弹开，堆积就会慢慢"摊开"。
             var damp = Math.pow(this.linearDamping, h * 60);
             for (var i = 0; i < n; i++) {
                 var b = this.bodies[i];
@@ -130,7 +137,7 @@
                 b.y += b.vy * h;
             }
 
-            // 2) 约束迭代（位置修正 + 速度修正）
+            // 2) 约束迭代（位置修正 + 法向/切向速度修正）
             for (var it = 0; it < this.iterations; it++) {
                 for (var a = 0; a < n; a++) {
                     for (var c = a + 1; c < n; c++) {
@@ -139,6 +146,9 @@
                 }
                 for (var w = 0; w < n; w++) this._solveWalls(this.bodies[w]);
             }
+
+            // 3) 墙面/地面切向摩擦：每子步只做一次（放在迭代外，避免重复叠加）
+            for (var wf = 0; wf < n; wf++) this._wallFriction(this.bodies[wf], h);
         }
 
         this._settle(dt);
@@ -152,7 +162,7 @@
         this.contacts.push([a, b]);
     };
 
-    /* 圆-圆：位置修正（各让一半）+ 法向冲量（含恢复系数）+ 切向摩擦 */
+    /* 圆-圆：位置修正（各让一半）+ 法向冲量（含恢复系数）+ 库仑摩擦 */
     World.prototype._solvePair = function (a, b, record) {
         var dx = b.x - a.x, dy = b.y - a.y;
         var rsum = a.r + b.r;
@@ -170,8 +180,7 @@
         if (record) this._record(a, b);
 
         // 支撑判定：只有"竖向"接触才算被托住。
-        // 若只要求"有接触"，一起下落的水平接触群体会被整体冻在空中（真踩过：
-        // 出现速度 0、resting=true 却悬在容器上方的水果）。
+        // 若只要求"有接触"，一起下落的水平接触群体会被整体冻在空中。
         if (ny > 0.2) a._supported = true;          // b 在 a 下方 → a 被 b 托住
         else if (ny < -0.2) b._supported = true;    // a 在 b 下方 → b 被 a 托住
 
@@ -190,15 +199,19 @@
 
             // 慢速接触视为完全非弹性，否则堆积区会被重力一点点"喂"成永动机
             var e = (-vn < this.restThreshold) ? 0 : this.restitution;
-            var jn = -(1 + e) * vn * 0.5;                     // 等质量
+            var jn = -(1 + e) * vn * 0.5;                     // 法向冲量（等质量）
             a.vx -= nx * jn; a.vy -= ny * jn;
             b.vx += nx * jn; b.vy += ny * jn;
 
-            // 切向摩擦：低速走静摩擦（直接抹掉相对滑动），高速走动摩擦
+            // 库仑摩擦：切向冲量上限 μ·jn。
+            // 需要的冲量小于上限 → 静摩擦（不滑）；否则按上限滑动。
+            // 注意别用"速度阈值"判静/动：重力每步注入的切向速度（~g·h）总是很小，
+            // 那种写法会永远走"静摩擦"分支把切向速度整个抹掉 → 水果一碰就粘住滑不下去。
             var tx = -ny, ty = nx;
             var vt = (b.vx - a.vx) * tx + (b.vy - a.vy) * ty;
-            var fr = (Math.abs(vt) < this.staticFrictionSpeed) ? 1 : this.friction;
-            var jt = -vt * fr * 0.5;
+            var jtStop = -vt * 0.5;                           // 让两者切向速度一致所需冲量
+            var jtMax = this.friction * jn;
+            var jt = jtStop > jtMax ? jtMax : (jtStop < -jtMax ? -jtMax : jtStop);
             a.vx -= tx * jt; a.vy -= ty * jt;
             b.vx += tx * jt; b.vy += ty * jt;
         }
@@ -224,14 +237,22 @@
         if (b.y + b.r > this.height - 0.0001) b._supported = true;
     };
 
+    /* 墙面/地面的切向摩擦（库仑，Δv_t ≤ μ·g·h）。
+       没有它，被撞到的水果会沿着地面几乎无摩擦地滑出去很远。 */
+    World.prototype._wallFriction = function (b, h) {
+        var dvMax = this.friction * this.gravity * h;
+        if (b.y + b.r > this.height - 0.0001) b.vx = limitMag(b.vx, dvMax);
+        if (b.x - b.r < 0.0001 || b.x + b.r > this.width - 0.0001) b.vy = limitMag(b.vy, dvMax);
+    };
+
     /* 静止收敛（sleep timer）：
        1) 被"真实碰撞"砸中（_disturbed）或失去支撑 → 清零计时并唤醒。
           —— 下方水果被合并掉时，上面的不会悬空冻住；
           —— 新水果砸进堆里时，整堆会重新落定，而不是像贴图一样钉住。
        2) 被支撑 + 低速：累计安静时间；达到 sleepDelay 才真正睡稳（速度清零、跳过重力）。
           未睡稳前做温和衰减 → 落地是"落定"过程，有惯性感。
-       3) 其余（速度偏高）→ 清零计时，正常模拟。
-       注：这张计时器是关键——之前"当帧清零"的版本水果一触地就完全不动，很假。 */
+       3) 其余（速度偏高，比如正在沿斜面滑动）→ 清零计时，保持模拟。
+       注：这张计时器是关键——"当帧清零"的版本水果一触地就完全不动，很假。 */
     World.prototype._settle = function (dt) {
         var s = this.sleepSpeed;
         for (var i = 0; i < this.bodies.length; i++) {
