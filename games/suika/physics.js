@@ -9,6 +9,12 @@
    圆堆叠时冲量法容易互相穿透、抖动、甚至"炸开"；PBD 先做位置修正
    （各让一半，留 slop 容忍微小穿透），再顺带修正法向/切向速度，
    少量迭代就能得到稳定的堆叠。
+
+   关于"假不假"（重要）：
+   静止体如果一触地就当帧清零速度，水果会像贴图一样"啪"地钉住，
+   完全没有惯性/落定过程 —— 很假。这里用标准的 **sleep timer**：
+   被支撑且低速要持续 sleepDelay 秒才真正睡稳，期间保留弹跳后的
+   落定缓冲；真实碰撞会把接触双方标记为 disturbed，从而"惊醒"整堆。
    ============================================================ */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
@@ -25,17 +31,22 @@
         this.height = opts.height || 560;
 
         this.gravity     = opts.gravity == null ? 1600 : opts.gravity;      // px/s²
-        this.restitution = opts.restitution == null ? 0.12 : opts.restitution;      // 水果间弹性
-        this.wallRestitution = opts.wallRestitution == null ? 0.22 : opts.wallRestitution; // 墙体弹性
-        this.friction    = opts.friction == null ? 0.28 : opts.friction;    // 切向动摩擦
+        this.restitution = opts.restitution == null ? 0.18 : opts.restitution;      // 水果间弹性
+        this.wallRestitution = opts.wallRestitution == null ? 0.24 : opts.wallRestitution; // 墙体弹性
+        this.friction    = opts.friction == null ? 0.2 : opts.friction;     // 切向动摩擦
         // 静摩擦阈值：切向相对速度低于它就直接清零（不再滑动）。
         // 不加这个，堆叠会在位置修正下以几 px/s 缓慢"蠕动"，看着像永远在动。
-        this.staticFrictionSpeed = opts.staticFrictionSpeed == null ? 20 : opts.staticFrictionSpeed;
+        this.staticFrictionSpeed = opts.staticFrictionSpeed == null ? 14 : opts.staticFrictionSpeed;
         this.iterations  = opts.iterations || 8;      // 每子步的约束迭代次数
         this.substeps    = opts.substeps || 2;
         this.slop        = opts.slop == null ? 0.5 : opts.slop;   // 允许的微小穿透（抗抖动）
         this.linearDamping = opts.linearDamping == null ? 0.999 : opts.linearDamping;
-        this.sleepSpeed  = opts.sleepSpeed == null ? 12 : opts.sleepSpeed;  // 低于此速度快速衰减
+        this.sleepSpeed  = opts.sleepSpeed == null ? 14 : opts.sleepSpeed;  // 低于此速度才可能入睡
+        // 睡眠延迟（秒）：被支撑 + 低速 要"持续"这么久才真正睡稳。
+        // 太短 → 一触地就冻住（很假）；太长 → 堆积一直微动。
+        this.sleepDelay  = opts.sleepDelay == null ? 0.4 : opts.sleepDelay;
+        // 唤醒速度：被砸中后速度超过它 → 立即重新参与完整模拟。
+        this.wakeSpeed   = opts.wakeSpeed == null ? 60 : opts.wakeSpeed;
         // 恢复系数阈值：接近速度低于它时按"完全非弹性"处理（e=0）。
         // 不加这个，重力每步注入的 ~g·h 速度会让静止的堆积永远微抖。
         this.restThreshold = opts.restThreshold == null ? 40 : opts.restThreshold;
@@ -43,7 +54,9 @@
         // 单次位置修正上限：深重叠时若一次弹开太多，物体会被"瞬移"出去（甚至飞出盒子）。
         // 限幅后深重叠会分几步缓慢化开，行为稳定得多。
         this.maxCorrection = opts.maxCorrection == null ? 4 : opts.maxCorrection;
-        // 注意：数值属性叫 maxVel，别叫 maxSpeed —— 后者是本类的方法名，
+        // 睡眠窗口内的速度衰减（每步），让落地是"落定"而不是"啪一下冻住"
+        this.settleDamping = opts.settleDamping == null ? 0.9 : opts.settleDamping;
+        // 注：数值属性叫 maxVel，别叫 maxSpeed —— 后者是本类的方法名，
         // 实例属性会遮蔽原型方法（真踩过：this.maxSpeed() is not a function）
 
         this.bodies = [];
@@ -88,13 +101,16 @@
 
         this.contacts.length = 0;
         this._contactKeys = {};
-        for (var z = 0; z < n; z++) this.bodies[z]._supported = false;
+        for (var z = 0; z < n; z++) {
+            this.bodies[z]._supported = false;
+            this.bodies[z]._disturbed = false;   // 本步是否被"真实碰撞"砸到
+        }
 
         for (var k = 0; k < this.substeps; k++) {
             // 1) 积分（重力 + 阻尼 + 限速 + 位移）
-            //    resting 的物体本步不加重力：否则它每步被推下去一点点，
+            //    resting（已睡稳）的物体本步不加重力：否则它每步被推下去一点点，
             //    位置修正又会沿斜向法线把它横向弹开，堆积就会以 2~3px/s 缓慢"摊开"。
-            //    失去支撑时 _touched 会变 false → resting 自动解除，恢复正常下落。
+            //    失去支撑时 _settle 会把 resting 解除，恢复正常下落。
             var damp = Math.pow(this.linearDamping, h * 60);
             for (var i = 0; i < n; i++) {
                 var b = this.bodies[i];
@@ -125,7 +141,7 @@
             }
         }
 
-        this._settle();
+        this._settle(dt);
         this.steps++;
     };
 
@@ -169,6 +185,9 @@
         // 法向相对速度：< 0 表示正在靠近
         var vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
         if (vn < 0) {
+            // 真碰撞（不是静止接触的微小挤压）→ 把整堆"惊醒"，避免被砸中也不动
+            if (-vn > this.restThreshold) { a._disturbed = true; b._disturbed = true; }
+
             // 慢速接触视为完全非弹性，否则堆积区会被重力一点点"喂"成永动机
             var e = (-vn < this.restThreshold) ? 0 : this.restitution;
             var jn = -(1 + e) * vn * 0.5;                     // 等质量
@@ -186,7 +205,7 @@
     };
 
     /* 墙体：左右下三面有界，顶部开放（水果从上方落）。
-       同样使用恢复系数阈值：贴着墙/地静止时把法向速度清零，而不是留 22% 反弹。 */
+       同样使用恢复系数阈值：贴着墙/地静止时把法向速度清零，而不是留弹性一直弹。 */
     World.prototype._solveWalls = function (b) {
         var e = this.wallRestitution;
         var th = this.restThreshold;
@@ -205,23 +224,40 @@
         if (b.y + b.r > this.height - 0.0001) b._supported = true;
     };
 
-    /* 静止收敛：
-       1) 被托住（竖向接触或落地）且速度低于阈值 → 速度直接归零。
-          这一步是必要的：法向冲量只消掉"相对"速度，两球共同下坠的那份会留下，
-          叠加重力每步注入的速度，堆积就会以几 px/s 永远蠕动。
-       2) 其余低速体做温和衰减，消掉残余晃动。 */
-    World.prototype._settle = function () {
+    /* 静止收敛（sleep timer）：
+       1) 被"真实碰撞"砸中（_disturbed）或失去支撑 → 清零计时并唤醒。
+          —— 下方水果被合并掉时，上面的不会悬空冻住；
+          —— 新水果砸进堆里时，整堆会重新落定，而不是像贴图一样钉住。
+       2) 被支撑 + 低速：累计安静时间；达到 sleepDelay 才真正睡稳（速度清零、跳过重力）。
+          未睡稳前做温和衰减 → 落地是"落定"过程，有惯性感。
+       3) 其余（速度偏高）→ 清零计时，正常模拟。
+       注：这张计时器是关键——之前"当帧清零"的版本水果一触地就完全不动，很假。 */
+    World.prototype._settle = function (dt) {
         var s = this.sleepSpeed;
         for (var i = 0; i < this.bodies.length; i++) {
             var b = this.bodies[i];
             var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-            if (b._supported && sp < s) {
-                b.vx = 0;
-                b.vy = 0;
-                b.resting = true;
-            } else {
+
+            if (b._disturbed || !b._supported) {
+                b._restTime = 0;
                 b.resting = false;
-                if (sp < s) { b.vx *= 0.35; b.vy *= 0.35; }
+                continue;
+            }
+
+            if (sp < s) {
+                b._restTime = (b._restTime || 0) + dt;
+                if (b._restTime >= this.sleepDelay) {
+                    b.vx = 0;
+                    b.vy = 0;
+                    b.resting = true;                 // 睡稳：速度归零、跳过重力
+                } else {
+                    b.resting = false;
+                    b.vx *= this.settleDamping;       // 落定缓冲（非瞬间冻住）
+                    b.vy *= this.settleDamping;
+                }
+            } else {
+                b._restTime = 0;
+                b.resting = false;
             }
         }
     };
@@ -279,6 +315,13 @@
     World.prototype.isSettled = function (tol) {
         tol = tol == null ? 2 : tol;
         return this.maxSpeed() < tol;
+    };
+
+    /** 已睡稳（resting）的物体数量 —— 用于验证"最终真的停下来" */
+    World.prototype.sleepingCount = function () {
+        var c = 0;
+        for (var i = 0; i < this.bodies.length; i++) if (this.bodies[i].resting) c++;
+        return c;
     };
 
     return { World: World };
