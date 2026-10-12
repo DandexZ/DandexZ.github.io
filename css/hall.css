@@ -1,5 +1,5 @@
 /* ============================================================
-   hall.css — 首页：Hero / 游戏大厅卡片 / 关于我
+   hall.css — 首页：Hero / 游戏大厅卡片 / 人生格言
    ============================================================ */
 
 /* ---------------- Hero ---------------- */
@@ -131,7 +131,7 @@
     font-size: 0.82em;
 }
 
-/* ---------------- 关于我 ---------------- */
+/* ---------------- 人生格言 ---------------- */
 .about-card {
     background: #fff;
     color: #222;
@@ -143,6 +143,33 @@
 .about-card h3 { margin-top: 0; }
 
 .about-card p { margin: 0 0 12px; }
+
+/* 格言卡片：居中大字 */
+.motto-card {
+    text-align: center;
+    padding: 40px 28px;
+}
+
+.motto-card .motto {
+    margin: 0;
+    font-size: 1.6em;
+    font-weight: 700;
+    line-height: 1.7;
+    letter-spacing: 2px;
+    color: #16181d;
+}
+
+.motto-card .motto-note {
+    margin: 12px 0 0;
+    font-size: 0.9em;
+    letter-spacing: 1px;
+    color: #8a94a6;
+}
+
+@media (max-width: 600px) {
+    .motto-card { padding: 30px 18px; }
+    .motto-card .motto { font-size: 1.3em; letter-spacing: 1px; }
+}
 
 .about-card .links {
     display: flex;

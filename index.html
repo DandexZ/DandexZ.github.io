@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="张皓然的个人主页与小游戏大厅">
-    <title>张皓然 · 小游戏主页</title>
+    <meta name="description" content="89的妙妙屋 · 用原生 HTML / CSS / JS 手写的小游戏合集">
+    <title>89的妙妙屋 · 小游戏主页</title>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/hall.css">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1><a href="index.html">张皓然</a></h1>
+            <h1><a href="index.html">89的妙妙屋</a></h1>
             <nav>
                 <ul>
                     <li><a href="#games">游戏大厅</a></li>
-                    <li><a href="#about">关于我</a></li>
+                    <li><a href="#about">格言</a></li>
                     <li><a href="https://github.com/DandexZ" target="_blank" rel="noopener">GitHub</a></li>
                 </ul>
             </nav>
@@ -25,7 +25,7 @@
     <main>
         <div class="container">
             <section class="hero">
-                <h2>🎮 我的<span class="accent">小游戏</span>主页</h2>
+                <h2>🎮 妙妙屋的<span class="accent">小游戏</span></h2>
                 <p>用原生 HTML / CSS / JavaScript 手写的浏览器小游戏合集，无需安装，点开即玩。</p>
             </section>
 
@@ -72,26 +72,32 @@
                             <span class="best">最快 <b data-best>0</b> 秒</span>
                         </div>
                     </a>
+
+                    <a class="game-card" href="games/suika/index.html" data-game="suika">
+                        <div class="icon">🍉</div>
+                        <div class="name">合成大西瓜</div>
+                        <div class="desc">相同水果相撞合并，一路合成大西瓜。</div>
+                        <div class="meta-row">
+                            <span class="tag">可玩</span>
+                            <span class="best">最高 <b data-best>0</b></span>
+                        </div>
+                    </a>
                 </div>
             </section>
 
-            <!-- ============ 关于我 ============ -->
+            <!-- ============ 人生格言 ============ -->
             <section id="about">
-                <h2 class="section-title">👋 关于我</h2>
-                <div class="about-card">
-                    <h3>你好，我是张皓然</h3>
-                    <p>一名开发者，热爱编程与技术探索，喜欢用代码做点好玩的东西——这个小游戏主页就是其中之一。</p>
-                    <p>除了写代码，也关注 AI、量化投资和各类工程实践。</p>
-                    <div class="links">
-                        <a href="https://github.com/DandexZ" target="_blank" rel="noopener">💻 GitHub</a>
-                    </div>
+                <h2 class="section-title">🍟 人生格言</h2>
+                <div class="about-card motto-card">
+                    <p class="motto">人生的意义就是去码头整点薯条</p>
+                    <p class="motto-note">—— 一只海鸥</p>
                 </div>
             </section>
         </div>
     </main>
 
     <footer>
-        <p>&copy; 2026 张皓然 · Built with vanilla HTML / CSS / JS</p>
+        <p>&copy; 2026 89的妙妙屋 · Built with vanilla HTML / CSS / JS</p>
     </footer>
 
     <script src="js/highscore.js"></script>
