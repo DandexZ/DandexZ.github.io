@@ -36,7 +36,7 @@
     var world = new CirclePhysics.World({ width: W, height: H });
 
     var score = 0;
-    var curTier = 0, nextTier = 0;
+    var curTier = 0;
     var aimX = W / 2;
     var cooldown = 0, danger = 0, over = false;
     var floats = [];                  // 合并时上浮的 "+N"
@@ -55,7 +55,6 @@
         aimX = W / 2;
         floats.length = 0;
         curTier = rndTier();
-        nextTier = rndTier();
     }
 
     /* ---------------- 投放 ---------------- */
@@ -65,8 +64,7 @@
         var cx = clamp(x, r + 2, W - r - 2);
         var body = world.add({ x: cx, y: SPAWN_Y, r: r, tier: curTier });
         cooldown = DROP_COOLDOWN;
-        curTier = nextTier;
-        nextTier = rndTier();
+        curTier = rndTier();
         return body;
     }
 
@@ -271,20 +269,6 @@
             drawFruit(ctx, b.x, b.y, b.r, TIERS[b.tier].color, b.squash, b.pop);
         }
 
-        // 下一个预览（左上角）
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(8, 8, 74, 74, 12);
-        else ctx.rect(8, 8, 74, 74);
-        ctx.fill();
-
-        ctx.fillStyle = '#8899aa';
-        ctx.font = '11px "Courier New", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('下一个', 45, 20);
-        drawFruit(ctx, 45, 50, Math.min(TIERS[nextTier].r, 24), TIERS[nextTier].color, 0, 0);
-
         // 合并飘字
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -307,6 +291,8 @@
         tickMs: 16,                      // ≈60fps
         scoreLabel: '🍉',
         tip: '点击 / 轻点落点投放水果',
+        autostart: true,                 // 进来直接能玩，不需要「开始游戏」
+        startButton: false,              // 不渲染「开始游戏」按钮
         longPress: false,                // 长按不当右键：按住瞄准、松手投放
         dpad: false,                     // 这个游戏不用方向键，窄屏也不显示方向键
         onReset: reset,
@@ -330,7 +316,6 @@
                 danger: danger,
                 bodies: world.bodies.length,
                 cur: curTier,
-                next: nextTier,
                 aimX: aimX,
                 maxOverlap: world.maxOverlap(),
                 outOfBounds: world.outOfBounds(1)

@@ -183,6 +183,8 @@
         width: W,
         height: H,
         tickMs: 0,                                   // 回合制
+        autostart: true,                             // 进来直接能玩
+        startButton: false,                          // 玩家驱动，不放「开始游戏」
         scoreLabel: '🔢',
         tip: '← ↑ → ↓ / WASD 移动，相同数字合并',
         onReset: reset,

@@ -29,6 +29,7 @@
      longPress  默认 true。false = 不把长按映射为右键（如"按住瞄准、松手投放"的游戏）
      onMove(x, y)            指针移动（瞄准线 / 位置预览）；x,y 为 canvas 坐标
      autostart   是否进入页面即开始，默认 false
+     startButton 默认 true。false = 不渲染「开始游戏」按钮（配合 autostart，进来直接能玩）
    ============================================================ */
 (function (global) {
     'use strict';
@@ -48,6 +49,8 @@
         if (!this.mount) throw new Error('GameShell: 找不到挂载容器 ' + (this.opts.mount || '#game-shell'));
 
         this.gameKey = this.opts.gameKey || 'default';
+        // startButton = false → 不渲染「开始游戏」按钮（配合 autostart：进来直接能玩）
+        this.hasStartBtn = this.opts.startButton !== false;
         // tickMs = 0 → 回合制：不跑定时器，靠操作驱动重绘（2048 这类）
         this.tickMs = (this.opts.tickMs === 0) ? 0 : (this.opts.tickMs || 150);
         this.turnBased = this.tickMs === 0;
@@ -93,12 +96,12 @@
                 '</div>' +
             '</div>' +
             '<div class="controls">' +
-                '<button data-act="start">开始游戏</button>' +
+                (this.hasStartBtn ? '<button data-act="start">开始游戏</button>' : '') +
                 '<button data-act="pause" disabled>暂停</button>' +
                 '<button data-act="restart">重开</button>' +
             '</div>' +
             '<p class="tip">' + (this.opts.tip || '方向键 / WASD 控制') +
-                '　空格：开始 / 暂停</p>' +
+                (this.hasStartBtn ? '　空格：开始 / 暂停' : '　空格：暂停') + '</p>' +
             (this.opts.dpad === false ? '' :
             '<div class="dpad">' +
                 '<button class="up"    data-dir="0,-1">▲</button>' +
@@ -121,7 +124,7 @@
         this.restartBtn = wrap.querySelector('[data-act="restart"]');
         this.dpad = wrap.querySelector('.dpad');
 
-        this.startBtn.addEventListener('click', function () { self.start(); });
+        if (this.startBtn) this.startBtn.addEventListener('click', function () { self.start(); });
         this.pauseBtn.addEventListener('click', function () { self.togglePause(); });
         this.restartBtn.addEventListener('click', function () { self.reset(); });
 
@@ -252,6 +255,8 @@
         if (this.state === 'idle') this.start();
         if (this.state !== 'running') return;
         if (this.opts.onTap) this.opts.onTap(x, y, button, this);
+        // 回合制：点按后立刻重绘（这里漏了会让棋盘要等到下次重绘才更新 —— 扫雷踩过这个坑）
+        if (this.turnBased) this._render();
     };
 
     /* ---------------- 渲染 ---------------- */
@@ -304,8 +309,7 @@
         if (this.state === 'running') return;
         this._hideOverlay();
         this.state = 'running';
-        this.startBtn.textContent = '游戏中';
-        this.startBtn.disabled = true;
+        if (this.startBtn) { this.startBtn.textContent = '游戏中'; this.startBtn.disabled = true; }
         this.pauseBtn.disabled = false;
         this.pauseBtn.textContent = '暂停';
         this._clearTimer();
@@ -355,19 +359,19 @@
         this.state = 'idle';
         this.score = 0;
         this.scoreNode.textContent = '0';
-        this.startBtn.textContent = '开始游戏';
-        this.startBtn.disabled = false;
+        if (this.startBtn) { this.startBtn.textContent = '开始游戏'; this.startBtn.disabled = false; }
         this.pauseBtn.textContent = '暂停';
         this.pauseBtn.disabled = true;
         if (this.opts.onReset) this.opts.onReset(this);
         this._render();
+        // 自动开始的游戏（没有「开始游戏」按钮）：重开后立刻继续，否则会卡在 idle
+        if (this.opts.autostart) this.start();
     };
 
     GameShell.prototype.gameOver = function (msg) {
         this._clearTimer();
         this.state = 'over';
-        this.startBtn.textContent = '再来一局';
-        this.startBtn.disabled = false;
+        if (this.startBtn) { this.startBtn.textContent = '再来一局'; this.startBtn.disabled = false; }
         this.pauseBtn.disabled = true;
         this._render();
         this._showOverlay('GAME OVER', (msg ? msg + '　' : '') + this._bestText());
@@ -376,8 +380,7 @@
     GameShell.prototype.win = function (msg) {
         this._clearTimer();
         this.state = 'over';
-        this.startBtn.textContent = '再来一局';
-        this.startBtn.disabled = false;
+        if (this.startBtn) { this.startBtn.textContent = '再来一局'; this.startBtn.disabled = false; }
         this.pauseBtn.disabled = true;
         this._render();
         this._showOverlay('🎉 通关！', (msg ? msg + '　' : '') + this._bestText(), true);

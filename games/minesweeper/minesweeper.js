@@ -227,6 +227,8 @@
         width: W,
         height: H,
         tickMs: 0,                    // 回合制：计时时钟由游戏自带（见 startClock）
+        autostart: true,              // 进来直接能玩
+        startButton: false,           // 玩家驱动，不放「开始游戏」
         scoreLabel: '⏱ 用时',
         bestLabel: '🏆 最快',
         unit: '秒',
