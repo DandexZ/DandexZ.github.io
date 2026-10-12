@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>合成大西瓜 · 89的妙妙屋</title>
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/game.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><a href="../../index.html">89的妙妙屋</a></h1>
+            <nav>
+                <ul>
+                    <li><a href="../../index.html#games">游戏大厅</a></li>
+                    <li><a href="../../index.html#about">格言</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-page">
+            <div class="game-head">
+                <h2>🍉 合成大西瓜</h2>
+                <div class="sub">点击 / 轻点选择落点，水果自由下落　·　相同水果相撞会合并升级</div>
+            </div>
+
+            <!-- 游戏壳由 js/game-shell.js 渲染 -->
+            <div id="game-shell"></div>
+
+            <a class="back-link" href="../../index.html#games">← 返回游戏大厅</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 89的妙妙屋</p>
+    </footer>
+
+    <script src="../../js/highscore.js"></script>
+    <script src="../../js/game-shell.js"></script>
+    <script src="physics.js"></script>
+    <script src="suika.js"></script>
+</body>
+</html>

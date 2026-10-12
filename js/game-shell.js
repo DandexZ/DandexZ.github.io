@@ -15,7 +15,8 @@
      gameKey      最高分标识，如 'snake'
      width/height canvas 尺寸，默认 400x400
      tickMs       每帧毫秒；默认 150；传 0 = 回合制（无定时器）
-     tip          底部操作提示（外壳会自动补"空格：开始 / 暂停"）
+     tip         底部操作提示（外壳会自动补"空格：开始 / 暂停"）
+     dpad        默认 true。false = 不渲染移动端方向键（不用方向输入的游戏，如合成大西瓜）
      scoreLabel   当前分标签，默认 '🍎'
      bestLabel    最高分标签，默认 '🏆 最高'
      unit         数值单位，如 '秒'
@@ -25,6 +26,8 @@
      onDraw(ctx, shell)      绘制
      onDirection(dx, dy)     收到方向输入（键盘/触控/滑动）
      onTap(x, y, button)     画布点按；x,y 为 canvas 坐标，button 为 'left'|'right'
+     longPress  默认 true。false = 不把长按映射为右键（如"按住瞄准、松手投放"的游戏）
+     onMove(x, y)            指针移动（瞄准线 / 位置预览）；x,y 为 canvas 坐标
      autostart   是否进入页面即开始，默认 false
    ============================================================ */
 (function (global) {
@@ -96,12 +99,13 @@
             '</div>' +
             '<p class="tip">' + (this.opts.tip || '方向键 / WASD 控制') +
                 '　空格：开始 / 暂停</p>' +
+            (this.opts.dpad === false ? '' :
             '<div class="dpad">' +
                 '<button class="up"    data-dir="0,-1">▲</button>' +
                 '<button class="left"  data-dir="-1,0">◀</button>' +
                 '<button class="right" data-dir="1,0">▶</button>' +
                 '<button class="down"  data-dir="0,1">▼</button>' +
-            '</div>';
+            '</div>');
 
         this.mount.appendChild(wrap);
         this.root = wrap;
@@ -121,13 +125,15 @@
         this.pauseBtn.addEventListener('click', function () { self.togglePause(); });
         this.restartBtn.addEventListener('click', function () { self.reset(); });
 
-        this.dpad.addEventListener('click', function (e) {
-            var b = e.target.closest('button');
-            if (!b) return;
-            e.preventDefault();
-            var p = b.dataset.dir.split(',');
-            self._input(parseInt(p[0], 10), parseInt(p[1], 10));
-        });
+        if (this.dpad) {
+            this.dpad.addEventListener('click', function (e) {
+                var b = e.target.closest('button');
+                if (!b) return;
+                e.preventDefault();
+                var p = b.dataset.dir.split(',');
+                self._input(parseInt(p[0], 10), parseInt(p[1], 10));
+            });
+        }
     };
 
     /* 客户端坐标 → canvas 位图坐标（CSS 缩放时也准确） */
@@ -179,8 +185,9 @@
             });
 
             var lpTimer = null, lpPos = null;
+            var useLongPress = this.opts.longPress !== false;
             this.canvas.addEventListener('touchstart', function (e) {
-                if (e.touches.length !== 1) return;
+                if (!useLongPress || e.touches.length !== 1) return;
                 lpPos = self._toCanvas(e.touches[0].clientX, e.touches[0].clientY);
                 lpTimer = setTimeout(function () {
                     lpTimer = null;
@@ -191,6 +198,19 @@
 
             this.canvas.addEventListener('touchend', function () {
                 if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            }, { passive: true });
+        }
+
+        /* ---- 指针移动（瞄准线 / 落点预览） ---- */
+        if (this.opts.onMove) {
+            this.canvas.addEventListener('mousemove', function (e) {
+                var p = self._toCanvas(e.clientX, e.clientY);
+                self.opts.onMove(p.x, p.y, self);
+            });
+            this.canvas.addEventListener('touchmove', function (e) {
+                if (e.touches.length !== 1) return;
+                var p = self._toCanvas(e.touches[0].clientX, e.touches[0].clientY);
+                self.opts.onMove(p.x, p.y, self);
             }, { passive: true });
         }
 
