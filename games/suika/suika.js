@@ -57,11 +57,18 @@
         curTier = rndTier();
     }
 
-    /* ---------------- 投放 ---------------- */
+    /* ---------------- 投放 ----------------
+       落点加一点微抖动（±1px，占画布 0.25%，肉眼不可见）：
+       数学上"完全对心"的上下堆叠是亚稳态 —— 法线完全竖直、没有切向力，圆既不滑也不滚，
+       于是同一点连投会叠成竖直柱子（实测堆高 446px）。现实里没有完美对心，
+       给一点抖动，水果就会自然滚开摊平（实测堆高 95px）。 */
+    var SPAWN_JITTER = 1;
+
     function dropAt(x) {
         if (over || cooldown > 0) return null;
         var r = TIERS[curTier].r;
-        var cx = clamp(x, r + 2, W - r - 2);
+        var jit = (Math.random() * 2 - 1) * SPAWN_JITTER;
+        var cx = clamp(x + jit, r + 2, W - r - 2);
         var body = world.add({ x: cx, y: SPAWN_Y, r: r, tier: curTier });
         cooldown = DROP_COOLDOWN;
         curTier = rndTier();
@@ -93,8 +100,7 @@
         }
 
         var nt = tier + 1;
-        var body = world.add({ x: mx, y: my, r: TIERS[nt].r, tier: nt, vx: vx, vy: vy });
-        body.pop = 1;                               // 视觉：新水果弹一下
+        world.add({ x: mx, y: my, r: TIERS[nt].r, tier: nt, vx: vx, vy: vy });
         addScore(SCORE[nt]);
         addFloat(mx, my, '+' + SCORE[nt]);
     }
@@ -113,22 +119,9 @@
         }
     }
 
-    /* ---------------- 视觉状态 ---------------- */
-    function markSquash() {
-        var pairs = world.contacts;
-        for (var i = 0; i < pairs.length; i++) {
-            pairs[i][0].squash = 1;
-            pairs[i][1].squash = 1;
-        }
-    }
-
+    /* ---------------- 视觉状态（只剩合并飘字） ---------------- */
     function decayVisuals(dt) {
         var i;
-        for (i = 0; i < world.bodies.length; i++) {
-            var b = world.bodies[i];
-            if (b.squash) b.squash = Math.max(0, b.squash - dt * 3.5);
-            if (b.pop) b.pop = Math.max(0, b.pop - dt * 5);
-        }
         for (i = floats.length - 1; i >= 0; i--) {
             floats[i].life -= dt * 1.4;
             floats[i].y -= dt * 26;
@@ -172,7 +165,6 @@
             var steps = Math.min(MAX_STEPS_PER_CHUNK, Math.max(1, Math.round(remaining / FIXED)));
             for (var s = 0; s < steps; s++) {
                 world.step(FIXED);
-                markSquash();
                 resolveMerges();
                 decayVisuals(FIXED);
                 checkDanger(FIXED);
@@ -206,15 +198,10 @@
     }
 
     /* ---------------- 绘制 ---------------- */
-    function drawFruit(ctx, x, y, r, color, squash, pop) {
-        var sx = 1 + (squash || 0) * 0.10;
-        var sy = 1 - (squash || 0) * 0.10;
-        var scale = 1 + (pop || 0) * 0.12;
-        var rx = r * sx * scale, ry = r * sy * scale;
-
+    /* 刚体圆：永远是正圆、半径恒定（早先的 squash/pop 椭圆变形看着很假，已去掉） */
+    function drawFruit(ctx, x, y, r, color) {
         ctx.beginPath();
-        if (ctx.ellipse) ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-        else ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
         ctx.strokeStyle = 'rgba(0,0,0,0.28)';
@@ -246,7 +233,7 @@
         ctx.stroke();
         if (ctx.setLineDash) ctx.setLineDash([]);
 
-        // 瞄准线与落点虚影
+        // 瞄准线与落点预览（原色显示，方便一眼看清是哪种水果）
         if (!over) {
             var r = TIERS[curTier].r;
             if (ctx.setLineDash) ctx.setLineDash([5, 6]);
@@ -258,15 +245,13 @@
             ctx.stroke();
             if (ctx.setLineDash) ctx.setLineDash([]);
 
-            ctx.globalAlpha = 0.32;
-            drawFruit(ctx, clamp(aimX, r + 2, W - r - 2), SPAWN_Y, r, TIERS[curTier].color, 0, 0);
-            ctx.globalAlpha = 1;
+            drawFruit(ctx, clamp(aimX, r + 2, W - r - 2), SPAWN_Y, r, TIERS[curTier].color);
         }
 
-        // 水果
+        // 水果（刚体圆：不做拉伸/挤压形变）
         for (var i = 0; i < world.bodies.length; i++) {
             var b = world.bodies[i];
-            drawFruit(ctx, b.x, b.y, b.r, TIERS[b.tier].color, b.squash, b.pop);
+            drawFruit(ctx, b.x, b.y, b.r, TIERS[b.tier].color);
         }
 
         // 合并飘字

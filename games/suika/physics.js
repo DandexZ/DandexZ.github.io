@@ -28,11 +28,9 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    /* 把标量 v 朝 0 收缩，最多收缩 m（用于墙面切向摩擦的库仑上限） */
-    function limitMag(v, m) {
-        if (v > m) return v - m;
-        if (v < -m) return v + m;
-        return 0;
+    /* 把标量截断到 [-m, m]（库仑摩擦冲量上限） */
+    function clampAbs(v, m) {
+        return v > m ? m : (v < -m ? -m : v);
     }
 
     function World(opts) {
@@ -46,6 +44,11 @@
         // 摩擦系数 μ（静=动）。tanθ > μ 的斜面才会滑，所以 μ 决定"能堆多陡"。
         // 0.3 ≈ 16.7°：正上方能架住，偏心（架在别的球侧面上）会自然滑落，不"粘住"。
         this.friction    = opts.friction == null ? 0.3 : opts.friction;
+        // 圆形滚动：真实的圆球有转动自由度，落在有坡度的地方会"滚"下去。
+        // 滚动没有角度阈值（纯滑动要 tanθ > μ 才动），所以没有它，水果会叠成竖直柱子、
+        // 或卡在堆顶下不来 —— 用户原话："水果落在顶上很难往下落，不符合物理"。
+        this.rolling     = opts.rolling !== false;
+        this.angularDamping = opts.angularDamping == null ? 0.995 : opts.angularDamping;
         this.iterations  = opts.iterations || 8;      // 每子步的约束迭代次数
         this.substeps    = opts.substeps || 2;
         this.slop        = opts.slop == null ? 0.5 : opts.slop;   // 允许的微小穿透（抗抖动）
@@ -82,7 +85,9 @@
             y: b.y,
             vx: b.vx || 0,
             vy: b.vy || 0,
+            omega: b.omega || 0,          // 角速度（滚动）
             r: b.r,
+            mass: b.mass || (b.r * b.r),  // 质量 ∝ 面积：大水果更"重"，不能被小水果撞飞
             tier: b.tier == null ? 0 : b.tier,
             data: b.data
         };
@@ -126,6 +131,7 @@
                 b.vy += this.gravity * h;
                 b.vx *= damp;
                 b.vy *= damp;
+                if (this.rolling) b.omega *= Math.pow(this.angularDamping, h * 60);
 
                 var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
                 if (sp > this.maxVel) {
@@ -184,11 +190,14 @@
         if (ny > 0.2) a._supported = true;          // b 在 a 下方 → a 被 b 托住
         else if (ny < -0.2) b._supported = true;    // a 在 b 下方 → b 被 a 托住
 
+        // 逆质量：位置修正与冲量都按它分配 —— 重的动得少
+        var ia = 1 / a.mass, ib = 1 / b.mass, isum = ia + ib;
+
         var pen = rsum - d;
         if (pen > this.slop) {
-            var corr = Math.min((pen - this.slop) * 0.5, this.maxCorrection);
-            a.x -= nx * corr; a.y -= ny * corr;
-            b.x += nx * corr; b.y += ny * corr;
+            var total = Math.min(pen - this.slop, this.maxCorrection * 2);
+            a.x -= nx * total * (ia / isum); a.y -= ny * total * (ia / isum);
+            b.x += nx * total * (ib / isum); b.y += ny * total * (ib / isum);
         }
 
         // 法向相对速度：< 0 表示正在靠近
@@ -199,21 +208,28 @@
 
             // 慢速接触视为完全非弹性，否则堆积区会被重力一点点"喂"成永动机
             var e = (-vn < this.restThreshold) ? 0 : this.restitution;
-            var jn = -(1 + e) * vn * 0.5;                     // 法向冲量（等质量）
-            a.vx -= nx * jn; a.vy -= ny * jn;
-            b.vx += nx * jn; b.vy += ny * jn;
+            var jn = -(1 + e) * vn / isum;                    // 法向冲量
+            a.vx -= nx * jn * ia; a.vy -= ny * jn * ia;
+            b.vx += nx * jn * ib; b.vy += ny * jn * ib;
 
             // 库仑摩擦：切向冲量上限 μ·jn。
             // 需要的冲量小于上限 → 静摩擦（不滑）；否则按上限滑动。
             // 注意别用"速度阈值"判静/动：重力每步注入的切向速度（~g·h）总是很小，
             // 那种写法会永远走"静摩擦"分支把切向速度整个抹掉 → 水果一碰就粘住滑不下去。
             var tx = -ny, ty = nx;
-            var vt = (b.vx - a.vx) * tx + (b.vy - a.vy) * ty;
-            var jtStop = -vt * 0.5;                           // 让两者切向速度一致所需冲量
+            // 接触点的切向相对速度 = 圆心相对速度 + 两球转动带来的表面速度(ω·r)
+            var spin = this.rolling ? (b.omega * b.r + a.omega * a.r) : 0;
+            var vt = (b.vx - a.vx) * tx + (b.vy - a.vy) * ty - spin;
+            // 切向有效质量：无转动 1/isum；圆盘 I=½mr²（含转动耦合）降到 1/(3·isum)
+            var jtStop = -vt / (this.rolling ? 3 * isum : isum);
             var jtMax = this.friction * jn;
             var jt = jtStop > jtMax ? jtMax : (jtStop < -jtMax ? -jtMax : jtStop);
-            a.vx -= tx * jt; a.vy -= ty * jt;
-            b.vx += tx * jt; b.vy += ty * jt;
+            a.vx -= tx * jt * ia; a.vy -= ty * jt * ia;
+            b.vx += tx * jt * ib; b.vy += ty * jt * ib;
+            if (this.rolling) {                               // 摩擦冲量同时改变转动
+                a.omega -= 2 * jt * ia / a.r;
+                b.omega -= 2 * jt * ib / b.r;
+            }
         }
     };
 
@@ -240,9 +256,19 @@
     /* 墙面/地面的切向摩擦（库仑，Δv_t ≤ μ·g·h）。
        没有它，被撞到的水果会沿着地面几乎无摩擦地滑出去很远。 */
     World.prototype._wallFriction = function (b, h) {
-        var dvMax = this.friction * this.gravity * h;
-        if (b.y + b.r > this.height - 0.0001) b.vx = limitMag(b.vx, dvMax);
-        if (b.x - b.r < 0.0001 || b.x + b.r > this.width - 0.0001) b.vy = limitMag(b.vy, dvMax);
+        var jtMax = this.friction * this.gravity * h;      // ≈ μ ×（法向冲量）
+        var denom = this.rolling ? 3 : 1;                  // 圆盘滚动时切向有效质量 m/3
+        var jt;
+        if (b.y + b.r > this.height - 0.0001) {            // 地面：切向是 x
+            jt = clampAbs((b.vx - (this.rolling ? b.omega * b.r : 0)) / denom, jtMax);
+            b.vx -= jt;
+            if (this.rolling) b.omega += 2 * jt / b.r;
+        }
+        if (b.x - b.r < 0.0001 || b.x + b.r > this.width - 0.0001) {   // 侧墙：切向是 y
+            jt = clampAbs((b.vy - (this.rolling ? b.omega * b.r : 0)) / denom, jtMax);
+            b.vy -= jt;
+            if (this.rolling) b.omega += 2 * jt / b.r;
+        }
     };
 
     /* 静止收敛（sleep timer）：
@@ -270,11 +296,13 @@
                 if (b._restTime >= this.sleepDelay) {
                     b.vx = 0;
                     b.vy = 0;
-                    b.resting = true;                 // 睡稳：速度归零、跳过重力
+                    b.omega = 0;
+                    b.resting = true;                 // 睡稳：线速度/角速度归零、跳过重力
                 } else {
                     b.resting = false;
                     b.vx *= this.settleDamping;       // 落定缓冲（非瞬间冻住）
                     b.vy *= this.settleDamping;
+                    b.omega *= this.settleDamping;
                 }
             } else {
                 b._restTime = 0;
@@ -312,7 +340,9 @@
         var e = 0;
         for (var i = 0; i < this.bodies.length; i++) {
             var b = this.bodies[i];
-            e += 0.5 * (b.vx * b.vx + b.vy * b.vy) + this.gravity * (this.height - b.y);
+            var I = 0.5 * b.mass * b.r * b.r;
+            e += 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy) + 0.5 * I * b.omega * b.omega
+               + b.mass * this.gravity * (this.height - b.y);
         }
         return e;
     };
