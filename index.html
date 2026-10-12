@@ -3,136 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>张皓然 · 个人主页</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-        /* ---- 贪吃蛇游戏样式 ---- */
-        .game-section {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-radius: 16px;
-            padding: 30px;
-            margin: 30px 0;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-        .game-section h2 {
-            color: #e94560;
-            margin-top: 0;
-            font-size: 1.8em;
-            letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(233,69,96,0.5);
-        }
-        .game-section h2::after {
-            content: " 🐍";
-        }
-        .game-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        canvas#snakeCanvas {
-            border: 3px solid #e94560;
-            border-radius: 8px;
-            background: #0f3460;
-            box-shadow: 0 0 20px rgba(233,69,96,0.3);
-            display: block;
-        }
-        .game-info {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            color: #fff;
-            font-size: 1.2em;
-            font-family: 'Courier New', monospace;
-        }
-        .game-info span {
-            background: rgba(255,255,255,0.1);
-            padding: 6px 18px;
-            border-radius: 20px;
-        }
-        .game-info .score {
-            color: #ffd700;
-        }
-        .game-info .high-score {
-            color: #00d4ff;
-        }
-        .game-controls {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .game-controls button {
-            background: #e94560;
-            color: #fff;
-            border: none;
-            padding: 10px 28px;
-            border-radius: 25px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        .game-controls button:hover {
-            background: #c73650;
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(233,69,96,0.6);
-        }
-        .game-tip {
-            color: #8899aa;
-            font-size: 0.85em;
-            margin-top: 5px;
-        }
-
-        /* ---- 移动端触控按钮 ---- */
-        .touch-controls {
-            display: none;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(3, 60px);
-            gap: 4px;
-            justify-content: center;
-            margin-top: 5px;
-        }
-        .touch-controls .up    { grid-column: 2; grid-row: 1; }
-        .touch-controls .left  { grid-column: 1; grid-row: 2; }
-        .touch-controls .right { grid-column: 3; grid-row: 2; }
-        .touch-controls .down  { grid-column: 2; grid-row: 3; }
-        .touch-btn {
-            background: rgba(233,69,96,0.3);
-            border: 1px solid rgba(233,69,96,0.5);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-        }
-        .touch-btn:active {
-            background: rgba(233,69,96,0.6);
-        }
-
-        @media (max-width: 600px) {
-            .game-section { padding: 15px; }
-            canvas#snakeCanvas { max-width: 100%; }
-            .touch-controls { display: grid; }
-            .game-tip { display: none; }
-        }
-    </style>
+    <meta name="description" content="张皓然的个人主页与小游戏大厅">
+    <title>张皓然 · 小游戏主页</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/hall.css">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>张皓然</h1>
+            <h1><a href="index.html">张皓然</a></h1>
             <nav>
                 <ul>
-                    <li><a href="#about">关于</a></li>
-                    <li><a href="#game">贪吃蛇</a></li>
+                    <li><a href="#games">游戏大厅</a></li>
+                    <li><a href="#about">关于我</a></li>
+                    <li><a href="https://github.com/DandexZ" target="_blank" rel="noopener">GitHub</a></li>
                 </ul>
             </nav>
         </div>
@@ -140,35 +24,59 @@
 
     <main>
         <div class="container">
-            <!-- 关于我 -->
-            <section class="blog-posts">
-                <article id="about">
-                    <h2>👋 你好</h2>
-                    <p>欢迎来到我的个人主页！我是一名开发者，热爱编程与技术探索。</p>
-                    <p>下面是一个贪吃蛇小游戏，欢迎来玩 🎮</p>
-                </article>
+            <section class="hero">
+                <h2>🎮 我的<span class="accent">小游戏</span>主页</h2>
+                <p>用原生 HTML / CSS / JavaScript 手写的浏览器小游戏合集，无需安装，点开即玩。</p>
             </section>
 
-            <!-- 贪吃蛇游戏 -->
-            <section id="game" class="game-section">
-                <h2>贪吃蛇</h2>
-                <div class="game-wrapper">
-                    <div class="game-info">
-                        <span class="score">🍎 <span id="score">0</span></span>
-                        <span class="high-score">🏆 最高: <span id="highScore">0</span></span>
+            <!-- ============ 游戏大厅 ============ -->
+            <section id="games">
+                <h2 class="section-title">🕹️ 游戏大厅</h2>
+                <div class="hall-grid">
+                    <a class="game-card" href="games/snake/index.html" data-game="snake">
+                        <div class="icon">🐍</div>
+                        <div class="name">贪吃蛇</div>
+                        <div class="desc">经典玩法，方向键操控，越吃越长。</div>
+                        <div class="meta-row">
+                            <span class="tag">可玩</span>
+                            <span class="best">最高 <b data-best>0</b></span>
+                        </div>
+                    </a>
+
+                    <div class="game-card is-locked">
+                        <div class="icon">🔢</div>
+                        <div class="name">2048</div>
+                        <div class="desc">滑动合并数字，挑战 2048。</div>
+                        <div class="meta-row"><span class="tag">开发中</span></div>
                     </div>
-                    <canvas id="snakeCanvas" width="400" height="400"></canvas>
-                    <div class="game-controls">
-                        <button id="startBtn">开始游戏</button>
-                        <button id="pauseBtn" disabled>暂停</button>
+
+                    <div class="game-card is-locked">
+                        <div class="icon">🧱</div>
+                        <div class="name">俄罗斯方块</div>
+                        <div class="desc">消除整行，越叠越快。</div>
+                        <div class="meta-row"><span class="tag">开发中</span></div>
                     </div>
-                    <div class="game-tip">← ↑ → ↓ 方向键控制方向</div>
-                    <!-- 移动端触控 -->
-                    <div class="touch-controls">
-                        <div class="touch-btn up" data-dir="up">▲</div>
-                        <div class="touch-btn left" data-dir="left">◀</div>
-                        <div class="touch-btn right" data-dir="right">▶</div>
-                        <div class="touch-btn down" data-dir="down">▼</div>
+
+                    <div class="game-card is-locked">
+                        <div class="icon">💣</div>
+                        <div class="name">扫雷</div>
+                        <div class="desc">推理排雷，小心别踩雷。</div>
+                        <div class="meta-row"><span class="tag">开发中</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ 关于我 ============ -->
+            <section id="about">
+                <h2 class="section-title">👋 关于我</h2>
+                <div class="about-card">
+                    <h3>你好，我是张皓然</h3>
+                    <p>一名开发者，热爱编程与技术探索，喜欢用代码做点好玩的东西——这个小游戏主页就是其中之一。</p>
+                    <p>除了写代码，也关注 AI、量化投资和各类工程实践。</p>
+                    <div class="links">
+                        <a href="pdfs/张皓然的简历2.5.pdf" target="_blank" rel="noopener">📄 我的简历</a>
+                        <a href="pdfs/research%20statement.pdf" target="_blank" rel="noopener">📝 Research Statement</a>
+                        <a href="https://github.com/DandexZ" target="_blank" rel="noopener">💻 GitHub</a>
                     </div>
                 </div>
             </section>
@@ -176,333 +84,19 @@
     </main>
 
     <footer>
-        <p>&copy; 2026 张皓然</p>
+        <p>&copy; 2026 张皓然 · Built with vanilla HTML / CSS / JS</p>
     </footer>
 
+    <script src="js/highscore.js"></script>
     <script>
-        (function() {
-            const canvas = document.getElementById('snakeCanvas');
-            const ctx = canvas.getContext('2d');
-            const scoreEl = document.getElementById('score');
-            const highScoreEl = document.getElementById('highScore');
-            const startBtn = document.getElementById('startBtn');
-            const pauseBtn = document.getElementById('pauseBtn');
+        // 把旧的最高分 key 迁到新的命名空间，保证老记录不丢
+        HighScore.migrate('snakeHighScore', 'snake');
 
-            // ---- 游戏配置 ----
-            const GRID_SIZE = 20;       // 20x20 网格
-            const CELL_SIZE = canvas.width / GRID_SIZE;
-            const TICK_MS = 150;        // 毫秒/帧
-
-            // ---- 游戏状态 ----
-            let snake = [];             // [{x,y}, ...]
-            let food = { x: 8, y: 10 };
-            let direction = { dx: 1, dy: 0 };
-            let nextDirection = { dx: 1, dy: 0 };
-            let score = 0;
-            let highScore = parseInt(localStorage.getItem('snakeHighScore')) || 0;
-            let running = false;
-            let paused = false;
-            let gameOver = false;
-            let timerId = null;
-
-            highScoreEl.textContent = highScore;
-
-            // ---- 工具 ----
-            function randomInt(max) { return Math.floor(Math.random() * max); }
-
-            // ---- 生成食物（避开蛇身） ----
-            function spawnFood() {
-                const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
-                const free = [];
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    for (let y = 0; y < GRID_SIZE; y++) {
-                        if (!occupied.has(`${x},${y}`)) free.push({ x, y });
-                    }
-                }
-                if (free.length === 0) return null; // 胜利
-                return free[randomInt(free.length)];
-            }
-
-            // ---- 重置游戏 ----
-            function resetGame() {
-                if (timerId) { clearInterval(timerId); timerId = null; }
-                score = 0;
-                scoreEl.textContent = '0';
-                gameOver = false;
-                paused = false;
-                pauseBtn.textContent = '暂停';
-                pauseBtn.disabled = true;
-                running = false;
-                startBtn.textContent = '开始游戏';
-
-                // 蛇：从中间向左延伸3节
-                const cx = Math.floor(GRID_SIZE / 2);
-                const cy = Math.floor(GRID_SIZE / 2);
-                snake = [
-                    { x: cx, y: cy },
-                    { x: cx - 1, y: cy },
-                    { x: cx - 2, y: cy },
-                ];
-                direction = { dx: 1, dy: 0 };
-                nextDirection = { dx: 1, dy: 0 };
-
-                const f = spawnFood();
-                if (f) food = f;
-
-                draw();
-            }
-
-            // ---- 绘图 ----
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // 网格线（淡）
-                ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-                ctx.lineWidth = 0.5;
-                for (let i = 0; i <= GRID_SIZE; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(i * CELL_SIZE, 0);
-                    ctx.lineTo(i * CELL_SIZE, canvas.height);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(0, i * CELL_SIZE);
-                    ctx.lineTo(canvas.width, i * CELL_SIZE);
-                    ctx.stroke();
-                }
-
-                // 食物
-                ctx.fillStyle = '#e94560';
-                ctx.shadowColor = '#e94560';
-                ctx.shadowBlur = 10;
-                ctx.beginPath();
-                const fx = food.x * CELL_SIZE + CELL_SIZE / 2;
-                const fy = food.y * CELL_SIZE + CELL_SIZE / 2;
-                ctx.arc(fx, fy, CELL_SIZE / 2 - 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-
-                // 蛇身
-                snake.forEach((seg, i) => {
-                    const isHead = i === 0;
-                    const pad = isHead ? 1 : 2;
-                    const x = seg.x * CELL_SIZE + pad;
-                    const y = seg.y * CELL_SIZE + pad;
-                    const w = CELL_SIZE - pad * 2;
-                    const r = 4;
-
-                    if (isHead) {
-                        ctx.fillStyle = '#ffd700';
-                        ctx.shadowColor = '#ffd700';
-                        ctx.shadowBlur = 12;
-                    } else {
-                        // 从绿渐变到蓝
-                        const t = i / snake.length;
-                        const g = Math.round(220 - t * 80);
-                        const b = Math.round(80 + t * 120);
-                        ctx.fillStyle = `rgb(0, ${g}, ${b})`;
-                        ctx.shadowColor = 'transparent';
-                        ctx.shadowBlur = 0;
-                    }
-
-                    ctx.beginPath();
-                    ctx.roundRect(x, y, w, w, r);
-                    ctx.fill();
-                });
-                ctx.shadowBlur = 0;
-
-                // 蛇头眼睛
-                if (snake.length > 0) {
-                    const head = snake[0];
-                    const hx = head.x * CELL_SIZE;
-                    const hy = head.y * CELL_SIZE;
-                    ctx.fillStyle = '#1a1a2e';
-                    const eyeR = 3;
-                    const eyeOff = 5;
-                    let ex1, ey1, ex2, ey2;
-                    if (direction.dx === 1) {
-                        ex1 = hx + CELL_SIZE - eyeOff - eyeR; ey1 = hy + eyeOff;
-                        ex2 = hx + CELL_SIZE - eyeOff - eyeR; ey2 = hy + CELL_SIZE - eyeOff - eyeR;
-                    } else if (direction.dx === -1) {
-                        ex1 = hx + eyeOff; ey1 = hy + eyeOff;
-                        ex2 = hx + eyeOff; ey2 = hy + CELL_SIZE - eyeOff - eyeR;
-                    } else if (direction.dy === -1) {
-                        ex1 = hx + eyeOff; ey1 = hy + eyeOff;
-                        ex2 = hx + CELL_SIZE - eyeOff - eyeR; ey2 = hy + eyeOff;
-                    } else {
-                        ex1 = hx + eyeOff; ey1 = hy + CELL_SIZE - eyeOff - eyeR;
-                        ex2 = hx + CELL_SIZE - eyeOff - eyeR; ey2 = hy + CELL_SIZE - eyeOff - eyeR;
-                    }
-                    ctx.beginPath(); ctx.arc(ex1, ey1, eyeR, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(ex2, ey2, eyeR, 0, Math.PI * 2); ctx.fill();
-                }
-
-                // Game Over 遮罩
-                if (gameOver) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#e94560';
-                    ctx.font = 'bold 36px "Courier New", monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
-                    ctx.fillStyle = '#8899aa';
-                    ctx.font = '16px "Courier New", monospace';
-                    ctx.fillText('点击「开始游戏」再来一局', canvas.width / 2, canvas.height / 2 + 30);
-                }
-            }
-
-            // ---- 游戏逻辑（每帧） ----
-            function tick() {
-                if (paused || gameOver) return;
-
-                // 应用方向
-                direction = { ...nextDirection };
-
-                // 新头
-                const head = snake[0];
-                const newHead = {
-                    x: head.x + direction.dx,
-                    y: head.y + direction.dy,
-                };
-
-                // 检查是否吃到食物
-                const ate = newHead.x === food.x && newHead.y === food.y;
-
-                // 构建新蛇
-                let newSnake = [newHead, ...snake];
-                if (!ate) {
-                    newSnake.pop(); // 没吃到就去尾
-                }
-
-                // 碰撞检测
-                const hitWall = newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE;
-                const hitSelf = newSnake.slice(1).some(s => s.x === newHead.x && s.y === newHead.y);
-
-                if (hitWall || hitSelf) {
-                    gameOver = true;
-                    running = false;
-                    clearInterval(timerId); timerId = null;
-                    startBtn.textContent = '重新开始';
-                    pauseBtn.disabled = true;
-                    draw();
-                    return;
-                }
-
-                snake = newSnake;
-
-                if (ate) {
-                    score++;
-                    scoreEl.textContent = score;
-                    const f = spawnFood();
-                    if (f) {
-                        food = f;
-                    } else {
-                        // 胜利！
-                        gameOver = true;
-                        running = false;
-                        clearInterval(timerId); timerId = null;
-                        startBtn.textContent = '🎉 你赢了！再来一局';
-                        pauseBtn.disabled = true;
-                        draw();
-                        return;
-                    }
-                    if (score > highScore) {
-                        highScore = score;
-                        highScoreEl.textContent = highScore;
-                        localStorage.setItem('snakeHighScore', highScore);
-                    }
-                }
-
-                draw();
-            }
-
-            // ---- 开始 / 暂停 ----
-            function startGame() {
-                if (gameOver) {
-                    resetGame();
-                }
-                if (running) return;
-                // 确保蛇就绪
-                if (!snake.length) resetGame();
-                running = true;
-                paused = false;
-                pauseBtn.textContent = '暂停';
-                pauseBtn.disabled = false;
-                startBtn.textContent = '游戏中';
-                if (timerId) clearInterval(timerId);
-                timerId = setInterval(tick, TICK_MS);
-                draw();
-            }
-
-            function togglePause() {
-                if (!running || gameOver) return;
-                paused = !paused;
-                pauseBtn.textContent = paused ? '继续' : '暂停';
-                draw();
-                if (!paused) {
-                    // 画面上加一个提示层（简化为直接绘制）
-                    draw();
-                } else {
-                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 32px "Courier New", monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('⏸ 已暂停', canvas.width / 2, canvas.height / 2);
-                }
-            }
-
-            // ---- 方向控制 ----
-            function setDirection(dx, dy) {
-                if (!running || gameOver || paused) return;
-                // 不允许180°掉头
-                if (dx === -direction.dx && dy === -direction.dy) return;
-                nextDirection = { dx, dy };
-            }
-
-            // ---- 键盘事件 ----
-            document.addEventListener('keydown', function(e) {
-                const key = e.key;
-                e.preventDefault();
-                if (key === 'ArrowUp')    setDirection(0, -1);
-                else if (key === 'ArrowDown')  setDirection(0, 1);
-                else if (key === 'ArrowLeft')  setDirection(-1, 0);
-                else if (key === 'ArrowRight') setDirection(1, 0);
-                else if (key === ' ' || key === 'Space') {
-                    e.preventDefault();
-                    if (!running && !gameOver) startGame();
-                    else if (running) togglePause();
-                }
-            });
-
-            // ---- 触控按钮 ----
-            document.querySelectorAll('.touch-btn').forEach(btn => {
-                btn.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    const dir = this.dataset.dir;
-                    if (dir === 'up')    setDirection(0, -1);
-                    if (dir === 'down')  setDirection(0, 1);
-                    if (dir === 'left')  setDirection(-1, 0);
-                    if (dir === 'right') setDirection(1, 0);
-                });
-                btn.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    const dir = this.dataset.dir;
-                    if (dir === 'up')    setDirection(0, -1);
-                    if (dir === 'down')  setDirection(0, 1);
-                    if (dir === 'left')  setDirection(-1, 0);
-                    if (dir === 'right') setDirection(1, 0);
-                });
-            });
-
-            // ---- 按钮事件 ----
-            startBtn.addEventListener('click', startGame);
-            pauseBtn.addEventListener('click', togglePause);
-
-            // ---- 初始化 ----
-            resetGame();
-        })();
+        // 大厅卡片上显示各游戏的历史最高分
+        document.querySelectorAll('.game-card[data-game]').forEach(function (card) {
+            var node = card.querySelector('[data-best]');
+            if (node) node.textContent = HighScore.get(card.dataset.game);
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,178 @@
+/* ============================================================
+   hall.css — 首页：Hero / 游戏大厅卡片 / 关于我
+   ============================================================ */
+
+/* ---------------- Hero ---------------- */
+.hero {
+    padding: 56px 0 30px;
+    text-align: center;
+}
+
+.hero h2 {
+    font-size: 2.1em;
+    margin: 0 0 10px;
+    letter-spacing: 3px;
+}
+
+.hero h2 .accent { color: var(--neon); }
+
+.hero p {
+    color: var(--muted);
+    max-width: 560px;
+    margin: 0 auto;
+    font-size: 1.05em;
+}
+
+/* ---------------- 区块标题 ---------------- */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 40px 0 22px;
+    font-size: 1.5em;
+    letter-spacing: 2px;
+}
+
+.section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--neon), transparent);
+}
+
+/* ---------------- 游戏卡片网格 ---------------- */
+.hall-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
+}
+
+.game-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 22px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-deep) 100%);
+    border: 1px solid var(--panel-line);
+    color: var(--text);
+    text-decoration: none;
+    overflow: hidden;
+    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.game-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 100% 0%, var(--neon-glow), transparent 60%);
+    opacity: 0;
+    transition: opacity .25s;
+}
+
+.game-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--neon);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--neon) inset;
+    text-decoration: none;
+}
+
+.game-card:hover::before { opacity: .22; }
+
+.game-card .icon {
+    font-size: 2.4em;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.15));
+}
+
+.game-card .name {
+    font-size: 1.2em;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.game-card .desc {
+    color: var(--muted);
+    font-size: 0.88em;
+    flex: 1;
+}
+
+.game-card .meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 0.82em;
+}
+
+.game-card .best { color: var(--gold); }
+
+.game-card.is-locked {
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+    opacity: 0.6;
+}
+
+.game-card.is-locked:hover {
+    transform: none;
+    border-color: var(--panel-line);
+    box-shadow: none;
+}
+
+.game-card.is-locked:hover::before { opacity: 0; }
+
+.play-hint {
+    color: var(--neon);
+    font-weight: 700;
+    font-family: var(--sans);
+    font-size: 0.82em;
+}
+
+/* ---------------- 关于我 ---------------- */
+.about-card {
+    background: #fff;
+    color: #222;
+    border-radius: var(--radius);
+    padding: 26px 28px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.about-card h3 { margin-top: 0; }
+
+.about-card p { margin: 0 0 12px; }
+
+.about-card .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.about-card .links a {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: 22px;
+    background: #f1f3f7;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.9em;
+    border: 1px solid #e2e6ee;
+}
+
+.about-card .links a:hover {
+    background: var(--neon);
+    color: #fff;
+    border-color: var(--neon);
+    text-decoration: none;
+}
+
+@media (max-width: 600px) {
+    .hero { padding: 36px 0 20px; }
+    .hero h2 { font-size: 1.6em; }
+    .hall-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+    .game-card { padding: 16px; }
+    .game-card .icon { font-size: 1.9em; }
+}

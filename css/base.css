@@ -1,0 +1,166 @@
+/* ============================================================
+   base.css — 全站基础：主题变量 / 布局 / 头部 / 页脚 / 通用元素
+   ============================================================ */
+
+:root {
+    /* 暗色霓虹主题 */
+    --bg:          #0f0f1a;
+    --bg-soft:     #1a1a2e;
+    --bg-deep:     #16213e;
+    --panel:       #131a2e;
+    --panel-line:  rgba(233, 69, 96, 0.25);
+    --text:        #e8ecf5;
+    --muted:       #8899aa;
+
+    --neon:        #e94560;
+    --neon-dark:   #c73650;
+    --neon-glow:   rgba(233, 69, 96, 0.5);
+    --gold:        #ffd700;
+    --cyan:        #00d4ff;
+    --green:       #00d47a;
+
+    --radius:      16px;
+    --radius-sm:   10px;
+    --mono:        'Courier New', 'SFMono-Regular', Menlo, monospace;
+    --sans:        -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    -webkit-text-size-adjust: 100%;
+}
+
+main { flex: 1; padding-bottom: 40px; }
+
+.container {
+    width: min(1100px, 90%);
+    margin: 0 auto;
+}
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { line-height: 1.3; }
+
+/* ---------------- 头部 / 导航 ---------------- */
+header {
+    background: rgba(15, 15, 26, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--neon);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 64px;
+    flex-wrap: wrap;
+}
+
+header h1 {
+    font-size: 1.35em;
+    margin: 0;
+    letter-spacing: 2px;
+}
+
+header h1 a { color: var(--text); text-decoration: none; }
+
+header nav ul {
+    display: flex;
+    gap: 22px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+header nav a {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.95em;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+    transition: color .2s, border-color .2s;
+}
+
+header nav a:hover {
+    color: var(--neon);
+    border-bottom-color: var(--neon);
+    text-decoration: none;
+}
+
+/* ---------------- 页脚 ---------------- */
+footer {
+    background: #0b0b14;
+    color: var(--muted);
+    text-align: center;
+    padding: 22px 0;
+    font-size: 0.9em;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+footer a { color: var(--muted); }
+
+/* ---------------- 通用元素 ---------------- */
+.btn {
+    display: inline-block;
+    background: var(--neon);
+    color: #fff;
+    border: none;
+    padding: 10px 26px;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: background .2s, transform .15s, box-shadow .2s;
+}
+
+.btn:hover {
+    background: var(--neon-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--neon-glow);
+    text-decoration: none;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+.tag {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--cyan);
+    font-family: var(--mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}

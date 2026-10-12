@@ -1,0 +1,201 @@
+/* ============================================================
+   game.css — 游戏页通用外观：HUD / 舞台 / 按钮 / 触控方向键
+   所有游戏页共用（由 GameShell 生成的 DOM 决定类名）
+   ============================================================ */
+
+.game-page {
+    width: min(560px, 92%);
+    margin: 0 auto;
+}
+
+.game-head {
+    text-align: center;
+    padding: 26px 0 6px;
+}
+
+.game-head h2 {
+    margin: 0;
+    color: var(--neon);
+    font-size: 1.7em;
+    letter-spacing: 3px;
+    text-shadow: 0 0 12px var(--neon-glow);
+}
+
+.game-head .sub {
+    color: var(--muted);
+    font-size: 0.85em;
+    font-family: var(--mono);
+}
+
+/* ---------------- 游戏壳 ---------------- */
+.game-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 22px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-deep) 100%);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    margin-bottom: 30px;
+}
+
+.hud {
+    display: flex;
+    justify-content: center;
+    gap: 34px;
+    font-family: var(--mono);
+    font-size: 1.05em;
+    flex-wrap: wrap;
+}
+
+.hud span {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 18px;
+    border-radius: 20px;
+}
+
+.hud .hud-score b { color: var(--gold); }
+.hud .hud-best  b { color: var(--cyan); }
+
+/* 舞台：canvas + 遮罩层 */
+.stage {
+    position: relative;
+    line-height: 0;
+    max-width: 100%;
+}
+
+.stage canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;            /* 缩窄时等比缩放，避免画面被拉伸 */
+    border: 3px solid var(--neon);
+    border-radius: var(--radius-sm);
+    background: var(--bg-deep);
+    box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+    touch-action: none;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.66);
+    text-align: center;
+    padding: 16px;
+    line-height: 1.5;
+}
+
+.overlay.is-visible { display: flex; }
+
+.overlay .ov-title {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 1.9em;
+    color: var(--neon);
+    letter-spacing: 2px;
+}
+
+.overlay .ov-title.success { color: var(--green); }
+
+.overlay .ov-sub {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    color: var(--muted);
+}
+
+/* ---------------- 控制按钮 ---------------- */
+.controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.controls button {
+    background: var(--neon);
+    color: #fff;
+    border: none;
+    padding: 10px 26px;
+    border-radius: 25px;
+    font-size: 0.95em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: background .2s, transform .15s, box-shadow .2s;
+}
+
+.controls button:hover:not(:disabled) {
+    background: var(--neon-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px var(--neon-glow);
+}
+
+.controls button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.tip {
+    color: var(--muted);
+    font-size: 0.82em;
+    margin: 0;
+    font-family: var(--mono);
+    text-align: center;
+}
+
+/* ---------------- 移动端触控方向键 ---------------- */
+.dpad {
+    display: none;
+    grid-template-columns: repeat(3, 58px);
+    grid-template-rows: repeat(3, 58px);
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.dpad .up    { grid-column: 2; grid-row: 1; }
+.dpad .left  { grid-column: 1; grid-row: 2; }
+.dpad .right { grid-column: 3; grid-row: 2; }
+.dpad .down  { grid-column: 2; grid-row: 3; }
+
+.dpad button {
+    background: rgba(233, 69, 96, 0.28);
+    border: 1px solid rgba(233, 69, 96, 0.5);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.dpad button:active { background: rgba(233, 69, 96, 0.65); }
+
+/* 返回大厅 */
+.back-link {
+    display: inline-block;
+    margin: 18px 0 4px;
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+.back-link:hover { color: var(--neon); text-decoration: none; }
+
+@media (max-width: 600px) {
+    .game-shell { padding: 14px; }
+    .dpad { display: grid; }
+    .tip { display: none; }
+    .hud { gap: 14px; font-size: .95em; }
+}
