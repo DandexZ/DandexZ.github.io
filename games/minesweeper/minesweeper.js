@@ -9,9 +9,24 @@
     var N = 9, MINES = 10, CELL = 40;
     var W = N * CELL, H = N * CELL;          // 360 x 360
 
+    /* 配色分三层，靠"凸起 / 凹陷"拉开对比：
+       未翻开 = 亮面 + 上高光下暗边（浮起来）
+       已翻开 = 比画布底色更暗的下沉面（挖下去）
+       两者亮度差约 20 个百分点，远看也能一眼分清 */
+    var COL = {
+        bg:         '#16213e',
+        closedTop:  '#3d5080',      // 未开格：上缘亮
+        closedBot:  '#252f4d',      // 未开格：下缘暗
+        closedLine: 'rgba(0,0,0,0.45)',
+        closedHi:   'rgba(255,255,255,0.22)',
+        openFace:   '#0a1120',      // 已开格：挖开的深色
+        openEdge:   'rgba(0,0,0,0.55)',
+        boom:       '#e94560'
+    };
+
     var NUM_COLORS = {
-        1: '#00d4ff', 2: '#00d47a', 3: '#e94560', 4: '#c77dff',
-        5: '#f4a259', 6: '#00b3b3', 7: '#e8ecf5', 8: '#8899aa'
+        1: '#4dd2ff', 2: '#3ddc84', 3: '#ff6b81', 4: '#b388ff',
+        5: '#ffb74d', 6: '#4dd0e1', 7: '#e8ecf5', 8: '#9aa7b8'
     };
 
     var mine = [], open = [], flag = [];
@@ -150,29 +165,40 @@
     }
 
     function drawFlag(ctx, x, y) {
-        ctx.fillStyle = '#e94560';
+        // 旗杆
+        ctx.strokeStyle = '#f2f5fb';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(x + 14, y + 12);
-        ctx.lineTo(x + 27, y + 18);
-        ctx.lineTo(x + 14, y + 24);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#e8ecf5';
+        ctx.moveTo(x + 15, y + 9);
+        ctx.lineTo(x + 15, y + 30);
+        ctx.stroke();
+        // 底座
+        ctx.strokeStyle = '#8899aa';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x + 13, y + 11);
-        ctx.lineTo(x + 13, y + 30);
+        ctx.moveTo(x + 10, y + 31);
+        ctx.lineTo(x + 21, y + 31);
+        ctx.stroke();
+        // 旗面
+        ctx.fillStyle = '#ff4d6a';
+        ctx.beginPath();
+        ctx.moveTo(x + 16, y + 9);
+        ctx.lineTo(x + 30, y + 14.5);
+        ctx.lineTo(x + 16, y + 20);
+        ctx.closePath();
+        ctx.fill();
+        // 旗面描边，深色底上更立得住
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
 
     function drawMine(ctx, x, y) {
         var cx = x + CELL / 2, cy = y + CELL / 2, r = 8;
-        ctx.fillStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#1a1a2e';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = COL.bg;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
         for (var a = 0; a < 4; a++) {
             var ang = a * Math.PI / 4 + Math.PI / 8;
             ctx.beginPath();
@@ -180,40 +206,77 @@
             ctx.lineTo(cx + Math.cos(ang) * (r + 5), cy + Math.sin(ang) * (r + 5));
             ctx.stroke();
         }
+        ctx.fillStyle = COL.bg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        // 高光点
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.arc(cx - 2.5, cy - 3, 2, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     function onDraw(ctx) {
-        ctx.clearRect(0, 0, W, H);
+        // 先铺一层不透明底色：以前靠半透明白叠 CSS 背景，翻开格只有 +7% 白，
+        // 和未开格几乎同色（实测 rgb(38,49,76) vs rgb(36,48,80)），肉眼分不出。
+        ctx.fillStyle = COL.bg;
+        ctx.fillRect(0, 0, W, H);
 
         for (var r = 0; r < N; r++) {
             for (var c = 0; c < N; c++) {
                 var i = idx(r, c), x = c * CELL, y = r * CELL;
 
                 if (open[i]) {
+                    // ---- 已翻开：下沉的深色面 ----
                     if (mine[i]) {
-                        ctx.fillStyle = '#e94560';
-                        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+                        ctx.fillStyle = COL.boom;
+                        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
                         drawMine(ctx, x, y);
                         continue;
                     }
-                    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-                    ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+
+                    ctx.fillStyle = COL.openFace;
+                    ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+                    // 上/左一条暗边，强化"挖下去"的凹陷感
+                    ctx.strokeStyle = COL.openEdge;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 2.5, y + 2.5);
+                    ctx.lineTo(x + 2.5, y + CELL - 2.5);
+                    ctx.moveTo(x + 2.5, y + 2.5);
+                    ctx.lineTo(x + CELL - 2.5, y + 2.5);
+                    ctx.stroke();
 
                     var n = adjCount(r, c);
                     if (n) {
                         ctx.fillStyle = NUM_COLORS[n] || '#e8ecf5';
-                        ctx.font = 'bold 19px "Courier New", monospace';
+                        ctx.font = 'bold 20px "Courier New", monospace';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(String(n), x + CELL / 2, y + CELL / 2 + 1);
                     }
                 } else {
-                    ctx.fillStyle = '#243050';
-                    rrect(ctx, x + 1, y + 1, CELL - 2, CELL - 2, 5);
+                    // ---- 未翻开：亮面凸起（上亮下暗 + 高光边） ----
+                    var g = ctx.createLinearGradient(0, y + 2, 0, y + CELL - 2);
+                    g.addColorStop(0, COL.closedTop);
+                    g.addColorStop(1, COL.closedBot);
+                    ctx.fillStyle = g;
+                    rrect(ctx, x + 2, y + 2, CELL - 4, CELL - 4, 4);
                     ctx.fill();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+
+                    ctx.strokeStyle = COL.closedLine;
                     ctx.lineWidth = 1;
                     ctx.stroke();
+
+                    // 顶部高光，做出浮雕手感
+                    ctx.strokeStyle = COL.closedHi;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 5, y + 3.5);
+                    ctx.lineTo(x + CELL - 5, y + 3.5);
+                    ctx.stroke();
+
                     if (flag[i]) drawFlag(ctx, x, y);
                 }
             }
@@ -233,7 +296,8 @@
         bestLabel: '🏆 最快',
         unit: '秒',
         lowerIsBetter: true,
-        tip: '左键 / 轻点翻开，右键 / 长按插旗',
+        dpad: false,                  // 扫雷不用方向输入，别在手机上摆一副没用的十字键
+        tip: '左键点开　·　右键 / 长按插旗（再右键取消）',
         onReset: reset,
         onDraw: onDraw,
         onTap: onTap

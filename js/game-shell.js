@@ -42,6 +42,7 @@
 
     var SWIPE_MIN = 24;   // 滑动手势最小位移(px)
     var LONG_PRESS_MS = 400;
+    var LONG_PRESS_SLOP = 12;   // 长按期间手指允许的抖动(px)，超出即取消
 
     function GameShell(opts) {
         this.opts = opts || {};
@@ -172,36 +173,109 @@
         };
         document.addEventListener('keydown', this._onKey);
 
-        /* ---- 点按 / 右键 / 长按（棋盘类游戏） ---- */
+        /* ---- 点按 / 右键 / 长按（棋盘类游戏） ----
+           单一输入源：Pointer Events。
+           旧的 click + contextmenu + touchstart 三套混用有两个硬伤：
+             (a) 长按插旗后浏览器仍可能补派一次 click → 同一次操作触发两次；
+             (b) 靠 _suppressClick 吃掉"下一次" click，而长按松手常常不派发
+                 click，旗标就留在 true 上一直没被消费 → 长按之后第一次点击失效。
+           这里改为：pointerdown（右键立即插旗 / 触摸起长按计时器）→
+                     pointermove（超出抖动阈值则取消长按）→
+                     pointerup（长按已触发就吞掉，否则算一次左键点按）。
+           不再依赖 click，也就不需要任何"吞掉下一次"的状态。
+           不支持 PointerEvent 的旧浏览器退回 mouse/touch 兜底路径。 */
         if (this.opts.onTap) {
-            this.canvas.addEventListener('click', function (e) {
-                // 长按已按"右键"处理过 → 吃掉紧随其后的 click，避免一次操作触发两次
-                if (self._suppressClick) { self._suppressClick = false; return; }
-                var p = self._toCanvas(e.clientX, e.clientY);
-                self._tap(p.x, p.y, 'left');
-            });
-
-            this.canvas.addEventListener('contextmenu', function (e) {
-                e.preventDefault();
-                var p = self._toCanvas(e.clientX, e.clientY);
-                self._tap(p.x, p.y, 'right');
-            });
-
-            var lpTimer = null, lpPos = null;
             var useLongPress = this.opts.longPress !== false;
-            this.canvas.addEventListener('touchstart', function (e) {
-                if (!useLongPress || e.touches.length !== 1) return;
-                lpPos = self._toCanvas(e.touches[0].clientX, e.touches[0].clientY);
-                lpTimer = setTimeout(function () {
-                    lpTimer = null;
-                    self._suppressClick = true;
-                    self._tap(lpPos.x, lpPos.y, 'right');   // 长按 = 右键插旗
-                }, LONG_PRESS_MS);
-            }, { passive: true });
 
-            this.canvas.addEventListener('touchend', function () {
-                if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
-            }, { passive: true });
+            if (global.PointerEvent) {
+                var press = null;                      // 当前按下的上下文
+
+                var cancelPress = function () {
+                    if (press && press.timer) clearTimeout(press.timer);
+                    press = null;
+                };
+
+                this.canvas.addEventListener('pointerdown', function (e) {
+                    var p = self._toCanvas(e.clientX, e.clientY);
+
+                    if (e.button === 2) {              // 桌面右键：立即插旗
+                        self._tap(p.x, p.y, 'right');
+                        return;
+                    }
+                    if (e.button !== 0) return;
+
+                    press = { x: p.x, y: p.y, cx: e.clientX, cy: e.clientY,
+                              lp: false, timer: null };
+
+                    // 鼠标不参与长按（桌面上按住左键 400ms 不该插旗）
+                    if (useLongPress && e.pointerType !== 'mouse') {
+                        try { self.canvas.setPointerCapture(e.pointerId); } catch (err) {}
+                        press.timer = setTimeout(function () {
+                            if (!press) return;
+                            press.lp = true;
+                            self._tap(press.x, press.y, 'right');   // 长按 = 右键插旗
+                        }, LONG_PRESS_MS);
+                    }
+                });
+
+                this.canvas.addEventListener('pointermove', function (e) {
+                    // 不做长按的游戏（如"按住瞄准、松手投放"）不把位移算成取消，
+                    // 否则拖动瞄准后松手就投不出去了
+                    if (!press || press.lp || !useLongPress) return;
+                    var dx = e.clientX - press.cx, dy = e.clientY - press.cy;
+                    if (dx * dx + dy * dy > LONG_PRESS_SLOP * LONG_PRESS_SLOP) {
+                        press.moved = true;
+                        if (press.timer) { clearTimeout(press.timer); press.timer = null; }  // 手指移开 = 不是长按
+                    }
+                });
+
+                this.canvas.addEventListener('pointerup', function (e) {
+                    if (!press) return;
+                    var st = press;
+                    press = null;
+                    if (st.timer) clearTimeout(st.timer);
+                    if (st.lp || st.moved) return;     // 长按已插旗 / 滑动离手：都不算点按
+                    var p = self._toCanvas(e.clientX, e.clientY);
+                    self._tap(p.x, p.y, 'left');
+                });
+
+                this.canvas.addEventListener('pointercancel', cancelPress);
+                this.canvas.addEventListener('pointerleave', function (e) {
+                    // 只在按住状态下离开才取消（鼠标移出画布不该影响别的逻辑）
+                    if (press && press.timer) cancelPress();
+                });
+
+                // 右键菜单一律拦掉，避免盖住棋盘
+                this.canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+            } else {
+                this.canvas.addEventListener('click', function (e) {
+                    var p = self._toCanvas(e.clientX, e.clientY);
+                    self._tap(p.x, p.y, 'left');
+                });
+
+                this.canvas.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    var p = self._toCanvas(e.clientX, e.clientY);
+                    self._tap(p.x, p.y, 'right');
+                });
+
+                var lpTimer = null, lpPos = null;
+                this.canvas.addEventListener('touchstart', function (e) {
+                    if (!useLongPress || e.touches.length !== 1) return;
+                    lpPos = self._toCanvas(e.touches[0].clientX, e.touches[0].clientY);
+                    lpTimer = setTimeout(function () {
+                        lpTimer = null;
+                        self._suppressClick = true;
+                        // 兜底：即使浏览器没有补发 click，旗标也要自己复位
+                        setTimeout(function () { self._suppressClick = false; }, 700);
+                        self._tap(lpPos.x, lpPos.y, 'right');   // 长按 = 右键插旗
+                    }, LONG_PRESS_MS);
+                }, { passive: true });
+
+                this.canvas.addEventListener('touchend', function () {
+                    if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+                }, { passive: true });
+            }
         }
 
         /* ---- 指针移动（瞄准线 / 落点预览） ---- */

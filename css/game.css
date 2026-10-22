@@ -75,6 +75,11 @@
     background: var(--bg-deep);
     box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
     touch-action: none;
+    /* 长按插旗：压掉 iOS/Android 的长按系统菜单与文本选择，否则长按会弹菜单而不是插旗 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .overlay {
@@ -196,6 +201,7 @@
 @media (max-width: 600px) {
     .game-shell { padding: 14px; }
     .dpad { display: grid; }
-    .tip { display: none; }
+    /* 手机上没有右键，"长按插旗"这类提示必须留着，只缩小不隐藏 */
+    .tip { font-size: 0.74em; margin-top: -4px; }
     .hud { gap: 14px; font-size: .95em; }
 }
