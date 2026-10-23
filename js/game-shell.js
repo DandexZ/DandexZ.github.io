@@ -19,6 +19,8 @@
      dpad        默认 true。false = 不渲染移动端方向键（不用方向输入的游戏，如合成大西瓜）
      scoreLabel   当前分标签，默认 '🍎'
      bestLabel    最高分标签，默认 '🏆 最高'
+     extraLabel   可选：HUD 左侧额外显示一项（如扫雷的「🚩 剩余」），不传就不渲染
+                  配合 shell.setExtra(n) 更新
      unit         数值单位，如 '秒'
      lowerIsBetter true = 数值越小越好（记"最快"）
      onReset(shell)          重置状态
@@ -84,6 +86,8 @@
 
         wrap.innerHTML =
             '<div class="hud">' +
+                (this.opts.extraLabel ?
+                    '<span class="hud-extra">' + this.opts.extraLabel + ' <b>0</b></span>' : '') +
                 '<span class="hud-score">' + (this.opts.scoreLabel || '🍎') +
                     ' <b>0</b>' + unit + '</span>' +
                 '<span class="hud-best">' + (this.opts.bestLabel || '🏆 最高') +
@@ -117,6 +121,7 @@
         this.ctx = this.canvas.getContext('2d');
         this.scoreNode = wrap.querySelector('.hud-score b');
         this.bestNode = wrap.querySelector('.hud-best b');
+        this.extraNode = wrap.querySelector('.hud-extra b');
         this.overlay = wrap.querySelector('.overlay');
         this.ovTitle = wrap.querySelector('.ov-title');
         this.ovSub = wrap.querySelector('.ov-sub');
@@ -363,6 +368,12 @@
             this.bestNode.textContent = n;
             if (global.HighScore) HighScore.set(this.gameKey, n);
         }
+    };
+
+    /** 更新 HUD 上的额外数值（配置了 extraLabel 才有效），不影响最高分 */
+    GameShell.prototype.setExtra = function (n) {
+        this.extra = n;
+        if (this.extraNode) this.extraNode.textContent = n;
     };
 
     /* ---------------- 遮罩 ---------------- */

@@ -58,6 +58,7 @@
 
 .hud .hud-score b { color: var(--gold); }
 .hud .hud-best  b { color: var(--cyan); }
+.hud .hud-extra b { color: #ff6b81; }
 
 /* 舞台：canvas + 遮罩层 */
 .stage {
@@ -203,5 +204,7 @@
     .dpad { display: grid; }
     /* 手机上没有右键，"长按插旗"这类提示必须留着，只缩小不隐藏 */
     .tip { font-size: 0.74em; margin-top: -4px; }
-    .hud { gap: 14px; font-size: .95em; }
+    .hud { gap: 6px; font-size: .8em; }
+    /* 三项 HUD（扫雷有「剩余」）在小屏上要挤进一行，不然第三块会单独掉下去 */
+    .hud span { padding: 4px 9px; }
 }
